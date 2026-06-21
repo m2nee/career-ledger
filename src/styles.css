@@ -355,6 +355,20 @@ legend {
   font-weight: 700;
 }
 
+.generation-note {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: #4f675d;
+  background: #f4f8ee;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .form-actions {
   justify-content: flex-end;
   gap: 10px;
@@ -370,6 +384,12 @@ legend {
   padding: 0 18px;
   color: #fff;
   background: #18453b;
+}
+
+.primary-button:disabled,
+.ghost-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .ghost-button {
@@ -603,8 +623,49 @@ dd {
   line-height: 1.7;
 }
 
-.result-block ul {
-  padding-left: 20px;
+.portfolio-list {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.portfolio-list li {
+  padding-left: 2px;
+}
+
+.strong-list {
+  padding: 16px 16px 16px 34px;
+  border-radius: 8px;
+  background: #f3f7ef;
+  font-weight: 900;
+}
+
+.source-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 10px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.source-search {
+  color: #173f34;
+  background: #ddf267;
+}
+
+.source-input {
+  color: #5b3f18;
+  background: #ffe5bd;
+}
+
+.source-link {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #18453b;
+  font-size: 0.86rem;
+  font-weight: 900;
 }
 
 .tag-row {

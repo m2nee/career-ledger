@@ -11,6 +11,7 @@ import {
   MapPin,
   Plus,
   RotateCcw,
+  Search,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const STORAGE_KEY = 'career-ledger-events-v3';
+const STORAGE_KEY = 'career-ledger-events-v4';
 const OWNER_KEY = 'career-ledger-owner-id';
 
 const participationLevels = ['메인 PM', '서브 PM', '현장 운영 지원'];
@@ -33,6 +34,35 @@ const taskGroups = [
   { title: '사후 관리', items: ['결과보고서 작성', '정산 관리'] },
   { title: '기타', items: ['기타'] },
 ];
+
+const taskPhraseMap = {
+  '행사 기획': { responsibility: '행사 기획', summary: '행사 콘셉트 및 운영 방향 기획' },
+  '운영계획 수립': { responsibility: '운영계획 수립', summary: '행사 운영계획 수립 및 실행 체계 정리' },
+  '제안서 작성': { responsibility: '제안서 작성', summary: '제안서 구성 및 실행 전략 문서화' },
+  '예산 관리': { responsibility: '예산 관리', summary: '행사 예산 계획 및 집행 관리' },
+  '사전등록 운영': { responsibility: '사전등록 운영', summary: '사전등록 프로세스 설계 및 운영' },
+  '참가자 관리': { responsibility: '참가자 관리', summary: '참가자 등록 체계 구축 및 관리' },
+  '연사 관리': { responsibility: '연사 관리', summary: '연사 커뮤니케이션 및 발표 준비 관리' },
+  '협력사 관리': { responsibility: '협력사 관리', summary: '협력사 및 운영인력 관리' },
+  '홍보 운영': { responsibility: '홍보 운영', summary: '행사 홍보 채널 운영 및 참여 유도' },
+  '현장 총괄 운영': { responsibility: '현장 총괄 운영', summary: '행사 현장 운영 총괄' },
+  '등록데스크 운영': { responsibility: '등록데스크 운영', summary: '참가자 등록데스크 운영 및 현장 응대 관리' },
+  'VIP 의전': { responsibility: 'VIP 의전 지원', summary: 'VIP 의전 동선 및 현장 응대 관리' },
+  '무대 운영': { responsibility: '무대 운영', summary: '무대 진행 큐시트 및 현장 전환 관리' },
+  '콘솔 운영': { responsibility: '콘솔 운영', summary: '콘솔 운영 및 현장 진행 신호 관리' },
+  '동선 관리': { responsibility: '동선 관리', summary: '참가자 및 주요 인사 동선 관리' },
+  '시나리오 작성': { responsibility: '시나리오 작성', summary: '행사 시나리오 및 진행 흐름 설계' },
+  '발표자료 관리': { responsibility: '발표자료 관리', summary: '발표자료 취합, 검수 및 현장 반영 관리' },
+  '프로그램 운영': { responsibility: '프로그램 운영', summary: '세부 프로그램 운영 및 시간표 관리' },
+  'AV 운영': { responsibility: 'AV 운영', summary: 'AV 장비 운영 및 현장 기술 지원' },
+  '생중계 운영': { responsibility: '생중계 운영', summary: '생중계 운영 및 송출 품질 관리' },
+  '시스템 운영': { responsibility: '시스템 운영', summary: '행사 운영 시스템 세팅 및 현장 관리' },
+  '공간 조성': { responsibility: '공간 조성', summary: '행사 공간 구성 및 현장 조성 관리' },
+  '전시 운영': { responsibility: '전시 운영', summary: '전시 공간 운영 및 참가자 관람 흐름 관리' },
+  '부대행사 운영': { responsibility: '부대행사 운영', summary: '부대행사 프로그램 운영 및 현장 관리' },
+  '결과보고서 작성': { responsibility: '결과보고서 작성', summary: '행사 결과보고서 작성 및 성과 정리' },
+  '정산 관리': { responsibility: '정산 관리', summary: '행사 정산 자료 취합 및 비용 관리' },
+};
 
 const emptyForm = {
   eventName: '',
@@ -99,7 +129,7 @@ function inferEventType(eventName) {
     ['축제', '축제'],
     ['페스티벌', '축제'],
     ['시상식', '시상식'],
-    ['대회', '시상식'],
+    ['대회', '대회'],
     ['어워드', '시상식'],
     ['박람회', '박람회'],
     ['전시', '전시'],
@@ -113,32 +143,80 @@ function buildTaskTags(tasks) {
   return tasks.map((task) => `#${task.replace(/\s/g, '')}`).slice(0, 8);
 }
 
-function buildCareerSentence(source) {
-  const tasks = getTaskList(source);
-  const taskText = tasks.length ? tasks.join(', ') : '행사 운영';
-
-  if (source.participationLevel === '메인 PM') {
-    return `${taskText}을 중심으로 행사 운영 전반을 총괄하며 발주처 요구사항과 현장 실행 흐름을 조율하였다.`;
-  }
-
-  if (source.participationLevel === '서브 PM') {
-    return `${taskText}을 담당하며 메인 PM과 협업해 사전 준비부터 현장 운영까지 실행 품질을 안정적으로 지원하였다.`;
-  }
-
-  return `${taskText}을 수행하며 현장 운영 흐름을 지원하고 참가자와 주요 관계자의 행사 경험을 안정적으로 관리하였다.`;
+function buildPortfolioResponsibilities(tasks) {
+  if (tasks.length === 0) return ['행사 운영'];
+  return tasks.map((task) => taskPhraseMap[task]?.responsibility || task);
 }
 
-function mockGenerateAi(source) {
+function buildCareerSummary(source) {
+  const tasks = getTaskList(source);
+  const summaries = tasks.map((task) => taskPhraseMap[task]?.summary || `${task} 운영`).slice(0, 8);
+  const roleSummary = {
+    '메인 PM': '행사 기획 및 운영 총괄',
+    '서브 PM': '메인 PM 협업 기반 세부 운영 관리',
+    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리',
+  }[source.participationLevel];
+
+  return [...new Set([roleSummary, ...summaries])].slice(0, 8);
+}
+
+function buildInputBasedOverview(source, eventType) {
+  const dateText = formatEventDate(source);
+  const scaleText = source.participantScale ? ` 약 ${source.participantScale}명 규모로 운영된` : '';
+  return `${source.eventName}은 ${source.client || '발주처'}가 추진한 ${eventType} 성격의 행사로, ${dateText} ${source.venue}에서 진행되었다. ${scaleText} 행사의 목적과 현장 조건에 맞춰 참가자 경험, 운영 동선, 주요 관계자 커뮤니케이션을 고려한 실행 구조가 요구되는 프로젝트였다.`;
+}
+
+async function searchEventInfo(source) {
+  const query = `${source.eventName} ${source.client} ${source.venue}`.trim();
+  if (!source.eventName || !window.fetch) return null;
+
+  try {
+    const endpoint = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
+    const response = await fetch(endpoint, { signal: AbortSignal.timeout(3500) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const candidates = [
+      data.AbstractText,
+      data.Heading,
+      ...(data.RelatedTopics || []).flatMap((item) => (item.Text ? [item.Text] : item.Topics?.map((topic) => topic.Text) || [])),
+    ].filter(Boolean);
+
+    const usefulText = candidates.find((text) => text.includes(source.eventName) || text.length > 80);
+    if (!usefulText) return null;
+
+    return {
+      query,
+      title: data.Heading || source.eventName,
+      summary: usefulText.replace(/\s+/g, ' ').slice(0, 260),
+      url: data.AbstractURL || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function generateAi(source) {
   const eventType = inferEventType(source.eventName);
   const tasks = getTaskList(source);
-  const dateText = formatEventDate(source);
-  const scaleText = source.participantScale ? ` 약 ${source.participantScale}명 규모로` : '';
+  const searchResult = await searchEventInfo(source);
+  const overviewSource = searchResult ? 'search' : 'input';
+  const eventOverview = searchResult
+    ? `${source.eventName}은 검색 결과에서 확인된 정보에 따르면 ${searchResult.summary} ${source.venue ? `입력된 개최 장소는 ${source.venue}이다.` : ''}`.trim()
+    : buildInputBasedOverview(source, eventType);
+
+  const responsibilities = buildPortfolioResponsibilities(tasks);
+  const careerSummary = buildCareerSummary(source);
 
   return {
-    eventOverview: `${source.eventName}은 ${source.client || '발주처'}가 주관한 ${eventType} 성격의 행사로, ${dateText} ${source.venue}에서 진행되었다. ${scaleText} 운영된 이 행사는 참가자와 관계자가 한 공간에서 목적에 맞는 프로그램을 경험하도록 설계되었다. ${source.participationLevel} 역할로 참여하며 행사 목적, 장소 조건, 운영 동선을 고려한 실행 경험을 축적했다.`,
+    eventOverview,
+    overviewSource,
+    searchQuery: searchResult?.query || '',
+    searchUrl: searchResult?.url || '',
     eventType,
     taskTags: buildTaskTags(tasks),
-    careerSentence: buildCareerSentence(source),
+    responsibilities,
+    careerSummary,
+    portfolioText: [...responsibilities, ...careerSummary].map((item) => `- ${item}`).join('\n'),
   };
 }
 
@@ -173,6 +251,10 @@ function getLevelClass(level) {
   return 'level-support';
 }
 
+function getCardSummary(project) {
+  return project.ai.careerSummary?.[0] || project.ai.responsibilities?.[0] || '포트폴리오 문구 생성';
+}
+
 function App() {
   const [ownerId] = useState(getOwnerId);
   const [projects, setProjects] = useState(() => loadProjects(ownerId));
@@ -180,6 +262,7 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
   useEffect(() => {
@@ -213,8 +296,10 @@ function App() {
     setForm(emptyForm);
   }
 
-  function submitProject(event) {
+  async function submitProject(event) {
     event.preventDefault();
+    setIsGenerating(true);
+
     const source = {
       ...form,
       eventName: form.eventName.trim(),
@@ -224,7 +309,7 @@ function App() {
       customTask: form.tasks.includes('기타') ? form.customTask.trim() : '',
       participantScale: form.participantScale === '' ? '' : Number(form.participantScale),
     };
-    const ai = mockGenerateAi(source);
+    const ai = await generateAi(source);
 
     if (editingId) {
       setProjects((current) =>
@@ -239,8 +324,9 @@ function App() {
             : project,
         ),
       );
-      resetForm();
       setSelectedId(editingId);
+      resetForm();
+      setIsGenerating(false);
       return;
     }
 
@@ -256,6 +342,7 @@ function App() {
     setProjects((current) => [project, ...current]);
     setSelectedId(project.id);
     setForm(emptyForm);
+    setIsGenerating(false);
   }
 
   function startEdit(project) {
@@ -289,9 +376,9 @@ function App() {
     setConfirmAction(null);
   }
 
-  function copyCareerSentence() {
+  function copyPortfolioText() {
     if (!selectedProject) return;
-    navigator.clipboard?.writeText(selectedProject.ai.careerSentence);
+    navigator.clipboard?.writeText(selectedProject.ai.portfolioText || selectedProject.ai.careerSummary?.join('\n') || '');
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   }
@@ -303,7 +390,7 @@ function App() {
           <ArrowLeft size={18} />
           목록으로
         </button>
-        <ProjectDetail project={selectedProject} copied={copied} onCopy={copyCareerSentence} onDelete={requestDelete} onEdit={startEdit} />
+        <ProjectDetail project={selectedProject} copied={copied} onCopy={copyPortfolioText} onDelete={requestDelete} onEdit={startEdit} />
         <ConfirmModal action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
       </main>
     );
@@ -327,14 +414,22 @@ function App() {
         <section className="hero-copy">
           <p className="eyebrow">AI Career Memory</p>
           <h1>잊혀지는 경험을 자산으로.</h1>
-          <p>사실만 입력하면 AI가 행사 경험을 경력 자산으로 정리합니다.</p>
+          <p>사실만 입력하면 AI가 행사 경험을 포트폴리오 문구로 정리합니다.</p>
         </section>
       </header>
 
       <InsightDashboard insights={insights} />
 
       <section className="content-grid">
-        <ProjectForm form={form} editingId={editingId} onChange={updateForm} onToggleTask={toggleTask} onSubmit={submitProject} onCancelEdit={resetForm} />
+        <ProjectForm
+          form={form}
+          editingId={editingId}
+          isGenerating={isGenerating}
+          onChange={updateForm}
+          onToggleTask={toggleTask}
+          onSubmit={submitProject}
+          onCancelEdit={resetForm}
+        />
         <ProjectList projects={sortedProjects} onSelect={setSelectedId} onDelete={requestDelete} onEdit={startEdit} onReset={requestReset} />
       </section>
 
@@ -396,7 +491,7 @@ function Breakdown({ title, items, emptyText }) {
   );
 }
 
-function ProjectForm({ form, editingId, onChange, onToggleTask, onSubmit, onCancelEdit }) {
+function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, onSubmit, onCancelEdit }) {
   const needsCustomTask = form.tasks.includes('기타');
 
   return (
@@ -482,15 +577,20 @@ function ProjectForm({ form, editingId, onChange, onToggleTask, onSubmit, onCanc
           <span className="field-help">정확한 수치가 아니어도 됩니다. 대략적인 규모를 입력해주세요.</span>
         </label>
 
+        <p className="generation-note">
+          <Search size={16} />
+          행사명으로 공개 정보를 먼저 찾아보고, 찾지 못하면 입력값 기반으로 개요를 생성합니다.
+        </p>
+
         <div className="form-actions">
           {editingId && (
-            <button className="ghost-button" type="button" onClick={onCancelEdit}>
+            <button className="ghost-button" type="button" onClick={onCancelEdit} disabled={isGenerating}>
               취소
             </button>
           )}
-          <button className="primary-button" type="submit">
+          <button className="primary-button" type="submit" disabled={isGenerating}>
             <Plus size={18} />
-            {editingId ? '수정 저장' : '저장하고 AI 결과 보기'}
+            {isGenerating ? 'AI 결과 생성 중' : editingId ? '수정 저장' : '저장하고 AI 결과 보기'}
           </button>
         </div>
       </form>
@@ -534,7 +634,7 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
                   <MapPin size={14} />
                   {project.source.venue}
                 </span>
-                <p>{project.ai.careerSentence}</p>
+                <p>{getCardSummary(project)}</p>
               </button>
               <div className="card-actions">
                 <button className="ghost-button compact-button" onClick={() => onEdit(project)}>
@@ -555,6 +655,8 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
 }
 
 function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
+  const sourceLabel = project.ai.overviewSource === 'search' ? '검색 기반 개요' : '입력 기반 개요';
+
   return (
     <section className="detail-layout">
       <article className="panel">
@@ -596,7 +698,7 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
             <dd>{project.source.participantScale ? `${project.source.participantScale}명` : '미입력'}</dd>
           </div>
           <div className="full">
-            <dt>담당업무</dt>
+            <dt>담당업무 원본</dt>
             <dd>{getTaskList(project.source).join(', ') || '미입력'}</dd>
           </div>
         </dl>
@@ -606,28 +708,47 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
         <div className="detail-heading">
           <div className="section-title">
             <p>AI Generated</p>
-            <h2>AI 경력 자산화 결과</h2>
+            <h2>포트폴리오형 결과</h2>
           </div>
           <button className="ghost-button" onClick={onCopy}>
             {copied ? <Check size={18} /> : <Copy size={18} />}
-            {copied ? '복사됨' : '경력 문장 복사'}
+            {copied ? '복사됨' : '포트폴리오 문구 복사'}
           </button>
         </div>
-        <ResultBlock title="행사 개요">{project.ai.eventOverview}</ResultBlock>
+        <ResultBlock title="행사 개요">
+          <span className={`source-badge ${project.ai.overviewSource === 'search' ? 'source-search' : 'source-input'}`}>{sourceLabel}</span>
+          <p>{project.ai.eventOverview}</p>
+          {project.ai.searchUrl && (
+            <a className="source-link" href={project.ai.searchUrl} target="_blank" rel="noreferrer">
+              검색 출처 보기
+            </a>
+          )}
+        </ResultBlock>
         <ResultBlock title="행사유형">
           <div className="tag-row">
             <span>{project.ai.eventType}</span>
           </div>
         </ResultBlock>
+        <ResultBlock title="담당업무">
+          <ul className="portfolio-list">
+            {(project.ai.responsibilities || []).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </ResultBlock>
         <ResultBlock title="업무 태그">
           <div className="tag-row skill-tags">
-            {project.ai.taskTags.map((tag) => (
+            {(project.ai.taskTags || []).map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
           </div>
         </ResultBlock>
-        <ResultBlock title="경력 문장">
-          <p className="portfolio-sentence">{project.ai.careerSentence}</p>
+        <ResultBlock title="경력 요약">
+          <ul className="portfolio-list strong-list">
+            {(project.ai.careerSummary || []).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </ResultBlock>
       </article>
     </section>
