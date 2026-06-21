@@ -605,13 +605,6 @@ dd {
   flex-wrap: wrap;
 }
 
-.ai-action-group {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .result-block {
   padding-top: 14px;
   border-top: 1px solid #e2e9e1;

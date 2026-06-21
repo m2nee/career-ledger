@@ -10,7 +10,6 @@ import {
   Edit3,
   MapPin,
   Plus,
-  RefreshCw,
   RotateCcw,
   Search,
   Sparkles,
@@ -145,9 +144,9 @@ const eventKnowledgeProfiles = [
     type: '학술행사',
     characteristics: ['교육', '연구성과 공유', '다중 트랙 세션', '온라인 송출', '학술행사'],
     overviewBullets: [
-      '교육·연구 성과와 정책 의제를 공유하는 학술행사',
-      '전문가 발표 및 다중 트랙 세션 운영',
-      '현장 세션과 온라인 송출 프로그램 병행',
+      'KERIS 연구성과 공유 및 미래교육 방향 논의를 위한 심포지엄',
+      '교육 분야 전문가 및 관계기관 참여',
+      '기조강연, 연구성과 발표 및 다중 트랙 세션 운영',
     ],
     keyRoles: [
       '다중 트랙 세션 기반 학술행사 운영.',
@@ -226,25 +225,40 @@ function getKnowledgeProfile(eventName) {
   return eventKnowledgeProfiles.find((profile) => profile.keywords.some((keyword) => compactName.includes(keyword)));
 }
 
-function inferEventType(eventName) {
-  const name = eventName.replace(/\s/g, '');
+function inferEventType(sourceOrName) {
+  const eventName = typeof sourceOrName === 'string' ? sourceOrName : sourceOrName.eventName;
+  const sourceText =
+    typeof sourceOrName === 'string'
+      ? sourceOrName
+      : `${sourceOrName.eventName} ${sourceOrName.client} ${sourceOrName.venue} ${getTaskList(sourceOrName).join(' ')}`;
+  const name = sourceText.replace(/\s/g, '');
   const profile = getKnowledgeProfile(eventName);
   if (profile) return profile.type;
 
   const rules = [
-    ['토론회', '토론회'],
+    ['정책토론회', '정책 토론회'],
+    ['함상토론회', '정책 토론회'],
+    ['토론회', '정책 토론회'],
+    ['심포지엄', '학술 심포지엄'],
+    ['국제회의', '국제회의'],
+    ['국제컨퍼런스', '국제회의'],
+    ['총회', '국제회의'],
+    ['학술대회', '학술행사'],
     ['포럼', '포럼'],
     ['세미나', '세미나'],
     ['컨퍼런스', '컨퍼런스'],
     ['축제', '축제'],
     ['페스티벌', '축제'],
     ['시상식', '시상식'],
-    ['대회', '대회'],
+    ['포상', '시상식'],
     ['어워드', '시상식'],
+    ['대회', '시상·교류 행사'],
     ['박람회', '박람회'],
-    ['전시', '전시'],
+    ['전시회', '전시회'],
+    ['전시', '전시회'],
     ['워크숍', '워크숍'],
-    ['교육', '교육'],
+    ['워크샵', '워크숍'],
+    ['교육', '교육 프로그램'],
   ];
   return rules.find(([keyword]) => name.includes(keyword))?.[1] || '행사';
 }
@@ -472,14 +486,50 @@ function buildInputOverviewBullets(source, eventType) {
   const profile = getKnowledgeProfile(source.eventName);
   if (profile) return buildProfileOverviewBullets(profile);
 
-  const hostText = source.client ? `${source.client} 주관 ${eventType}` : `${eventType} 성격의 행사`;
-  const venueText = source.venue ? `${source.venue} 개최` : '입력 장소 기준 운영';
-  const scaleText = source.participantScale ? `약 ${source.participantScale}명 규모 참가자 대상` : '참가자 및 관계자 대상';
+  const tasks = getTaskList(source);
+  const text = `${source.eventName} ${source.client} ${source.venue} ${tasks.join(' ')}`;
+  const has = (keywords) => includesAny(text, keywords);
+  const host = source.client || '관계기관';
+  let purpose = `${host} 주요 의제와 운영 현안을 공유하는 ${eventType}`;
+  let agenda = '참석자 및 관계기관 대상 핵심 주제 공유';
+  let program = '발표, 교류 및 현장 프로그램 운영';
+
+  if (has(['KERIS', '케리스', '교육학술정보원', '교육', '연구', '학술', '심포지엄'])) {
+    purpose = `${source.client || '교육 분야'} 연구성과 공유 및 미래교육 방향 논의를 위한 ${eventType}`;
+    agenda = '교육 분야 전문가 및 관계기관 참여';
+    program = has(['생중계', '유튜브', '홈페이지', '다중', '트랙'])
+      ? '기조강연, 연구성과 발표 및 다중 트랙 세션 운영'
+      : '기조강연, 연구성과 발표 및 세션 프로그램 운영';
+  } else if (has(['함상', '해군', '국방', '안보'])) {
+    purpose = '해양안보 및 국방 현안 논의를 위한 정책 토론 행사';
+    agenda = '군·산·학·연 관계자 참여';
+    program = '전문가 발표, 패널토론 및 관계기관 네트워킹 진행';
+  } else if (has(['장애', '경제인', '기업', '포상', '시상'])) {
+    purpose = '장애인기업 성과 공유 및 경제활동 활성화 지원 행사';
+    agenda = '우수 장애경제인 포상 및 정책 의제 공유';
+    program = '정책 발표, 기업 교류 및 우수사례 공유 프로그램 운영';
+  } else if (has(['축제', '페스티벌', '문화', '공연', '체험'])) {
+    purpose = '지역 문화 콘텐츠와 시민 참여 확대를 위한 축제';
+    agenda = '지역 주민 및 방문객 대상 문화·체험 프로그램 운영';
+    program = '공연, 전시, 체험 및 부대행사 운영';
+  } else if (has(['국제', '회의', '컨퍼런스'])) {
+    purpose = '국내외 전문가와 관계기관이 참여하는 국제회의';
+    agenda = '산업·정책 의제 공유 및 글로벌 교류';
+    program = '기조연설, 세션 발표, 패널토론 및 네트워킹 운영';
+  } else if (has(['전시', '박람회', '부스'])) {
+    purpose = '산업 정보와 주요 콘텐츠를 소개하는 전시·박람회';
+    agenda = '참가기업, 관계기관 및 방문객 대상 전시 콘텐츠 공유';
+    program = '전시 부스, 상담, 부대행사 및 현장 관람 동선 운영';
+  } else if (has(['워크숍', '워크샵'])) {
+    purpose = '실무 역량 강화와 과제 논의를 위한 워크숍';
+    agenda = '참가자 대상 교육, 토론 및 실행 과제 공유';
+    program = '강의, 그룹 활동, 실습 및 결과 공유 프로그램 운영';
+  }
 
   return [
-    `${hostText}`,
-    `${venueText}`,
-    `${scaleText} 프로그램 및 현장 운영`,
+    purpose,
+    agenda,
+    program,
   ];
 }
 
@@ -507,26 +557,24 @@ function buildSearchOverviewBullets(source, searchResult, eventType) {
   const profile = getKnowledgeProfile(source.eventName);
   if (profile) return buildProfileOverviewBullets(profile);
 
-  const text = searchResult.text;
+  const text = `${searchResult.title || ''} ${searchResult.text || ''}`;
   const signals = buildSearchSignals(text);
-  const purpose = signals[0] ? `${signals[0]}를 위한 ${eventType}` : `${eventType} 주요 의제 공유`;
-  const program = signals.length > 1 ? signals.slice(1, 3).join(', ') : '발표, 교류, 현장 프로그램 운영';
-  const hostVenue = [
-    source.client ? `${source.client} 관련 정보 확인` : '',
-    source.venue && searchResult.venueMatched ? `${source.venue} 개최 정보 확인` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const agenda = signals.find((signal) => signal.includes('논의') || signal.includes('공유')) || `${eventType} 주요 아젠다 공유`;
+  const programSignals = signals.filter((signal) => signal !== agenda).slice(0, 2);
+  const program = programSignals.length > 0 ? `${programSignals.join(', ')} 운영` : '발표, 토론, 교류 프로그램 운영';
+  const audience = includesAny(text, ['전문가', '관계자', '기관', '기업', '시민', '참가자'])
+    ? '전문가, 관계기관 및 참가자 대상 프로그램 구성'
+    : `${source.client || '관계기관'} 및 참가자 대상 프로그램 구성`;
 
   return [
-    purpose,
+    `${agenda}를 중심으로 한 ${eventType}`,
+    audience,
     program,
-    hostVenue || '검색 결과 기반 행사 성격 및 운영 정보 확인',
   ].slice(0, 3);
 }
 
 async function generateAi(source) {
-  const eventType = inferEventType(source.eventName);
+  const eventType = inferEventType(source);
   const tasks = getTaskList(source);
   const searchResult = await searchEventInfo(source);
   const overviewSource = searchResult ? 'search' : 'input';
@@ -601,43 +649,6 @@ function stringifyEditableValue(value) {
 
 function buildPortfolioTextFromAi(ai) {
   return [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].map((item) => `- ${item}`).join('\n');
-}
-
-function mergeRegeneratedAi(currentAi, nextAi, scope) {
-  const manualEdits = { ...(currentAi.manualEdits || {}) };
-  const merged = {
-    ...currentAi,
-    regeneratedAt: new Date().toISOString(),
-  };
-  const apply = (field, value, options = {}) => {
-    if (!options.force && scope === 'all' && manualEdits[field]) return;
-    merged[field] = value;
-    if (options.force) delete manualEdits[field];
-  };
-
-  if (scope === 'overview' || scope === 'all') {
-    apply('eventOverview', nextAi.eventOverview, { force: scope === 'overview' });
-    apply('overviewSource', nextAi.overviewSource, { force: scope === 'overview' });
-    apply('searchQuery', nextAi.searchQuery, { force: scope === 'overview' });
-    apply('searchUrl', nextAi.searchUrl, { force: scope === 'overview' });
-    apply('searchSourceName', nextAi.searchSourceName, { force: scope === 'overview' });
-  }
-
-  if (scope === 'roles' || scope === 'all') {
-    apply('eventCharacteristics', nextAi.eventCharacteristics, { force: scope === 'roles' });
-    apply('keyRoles', nextAi.keyRoles, { force: scope === 'roles' });
-    apply('outcomes', nextAi.outcomes, { force: scope === 'roles' });
-  }
-
-  if (scope === 'all') {
-    apply('eventType', nextAi.eventType);
-    apply('taskTags', nextAi.taskTags);
-    apply('responsibilities', nextAi.responsibilities);
-  }
-
-  merged.manualEdits = manualEdits;
-  merged.portfolioText = buildPortfolioTextFromAi(merged);
-  return merged;
 }
 
 function App() {
@@ -745,10 +756,6 @@ function App() {
     setConfirmAction({ type: 'reset' });
   }
 
-  function requestRegenerate(projectId, scope = 'all') {
-    setConfirmAction({ type: 'regenerate', projectId, scope });
-  }
-
   function updateProjectAi(projectId, patch, editedField) {
     setProjects((current) =>
       current.map((project) => {
@@ -777,26 +784,7 @@ function App() {
     );
   }
 
-  async function regenerateProjectAi(projectId, scope = 'all') {
-    const project = projects.find((item) => item.id === projectId);
-    if (!project) return;
-    setIsGenerating(true);
-    const nextAi = await generateAi(project.source);
-    setProjects((current) =>
-      current.map((item) =>
-        item.id === projectId
-          ? {
-              ...item,
-              ai: mergeRegeneratedAi(item.ai, nextAi, scope),
-              updatedAt: new Date().toISOString(),
-            }
-          : item,
-      ),
-    );
-    setIsGenerating(false);
-  }
-
-  async function confirmPendingAction() {
+  function confirmPendingAction() {
     if (confirmAction?.type === 'delete') {
       setProjects((current) => current.filter((project) => project.id !== confirmAction.projectId));
       if (selectedId === confirmAction.projectId) setSelectedId(null);
@@ -807,14 +795,6 @@ function App() {
       setProjects([]);
       setSelectedId(null);
       resetForm();
-    }
-
-    if (confirmAction?.type === 'regenerate') {
-      const projectId = confirmAction.projectId;
-      const scope = confirmAction.scope || 'all';
-      setConfirmAction(null);
-      await regenerateProjectAi(projectId, scope);
-      return;
     }
 
     setConfirmAction(null);
@@ -839,12 +819,10 @@ function App() {
         <ProjectDetail
           project={selectedProject}
           copied={copied}
-          isGenerating={isGenerating}
           onCopy={copyPortfolioText}
           onDelete={requestDelete}
           onEdit={startEdit}
           onUpdateAi={updateProjectAi}
-          onRegenerate={requestRegenerate}
         />
         <ConfirmModal action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
       </main>
@@ -1109,7 +1087,7 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
   );
 }
 
-function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit, onUpdateAi, onRegenerate }) {
+function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }) {
   const sourceLabel = project.ai.overviewSource === 'search' ? '검색 기반 개요' : '입력 기반 임시 개요';
   const keyRoles = project.ai.keyRoles || project.ai.careerSummary || [];
   const outcomes = project.ai.outcomes || [];
@@ -1202,24 +1180,10 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
             <p>AI Generated</p>
             <h2>포트폴리오형 결과</h2>
           </div>
-          <div className="ai-action-group">
-            <button className="ghost-button" onClick={onCopy}>
-              {copied ? <Check size={18} /> : <Copy size={18} />}
-              {copied ? '복사됨' : '포트폴리오 문구 복사'}
-            </button>
-            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'overview')} disabled={isGenerating}>
-              <RefreshCw size={18} />
-              행사 개요 다시 생성
-            </button>
-            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'roles')} disabled={isGenerating}>
-              <RefreshCw size={18} />
-              역할/성과 다시 생성
-            </button>
-            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'all')} disabled={isGenerating}>
-              <RefreshCw size={18} />
-              {isGenerating ? '재생성 중' : '전체 다시 생성'}
-            </button>
-          </div>
+          <button className="ghost-button" onClick={onCopy}>
+            {copied ? <Check size={18} /> : <Copy size={18} />}
+            {copied ? '복사됨' : '포트폴리오 문구 복사'}
+          </button>
         </div>
         <ResultBlock
           title="행사 개요"
@@ -1313,13 +1277,10 @@ function ConfirmModal({ action, onCancel, onConfirm }) {
   if (!action) return null;
 
   const isReset = action.type === 'reset';
-  const isRegenerate = action.type === 'regenerate';
-  const title = isReset ? '전체 데이터를 초기화할까요?' : isRegenerate ? 'AI 결과를 다시 생성할까요?' : '프로젝트 삭제';
+  const title = isReset ? '전체 데이터를 초기화할까요?' : '프로젝트 삭제';
   const message = isReset
     ? '저장된 모든 프로젝트와 AI 생성 결과를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.'
-    : isRegenerate
-      ? 'AI 결과를 다시 생성하면 직접 수정한 내용이 변경될 수 있습니다. 계속하시겠습니까?'
-      : '이 프로젝트를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.';
+    : '이 프로젝트를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.';
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -1334,7 +1295,7 @@ function ConfirmModal({ action, onCancel, onConfirm }) {
             취소
           </button>
           <button className="danger-button" onClick={onConfirm}>
-            {isReset ? '전체 초기화' : isRegenerate ? '다시 생성' : '삭제'}
+            {isReset ? '전체 초기화' : '삭제'}
           </button>
         </div>
       </section>
