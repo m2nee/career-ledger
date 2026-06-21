@@ -85,28 +85,77 @@ const eventKnowledgeProfiles = [
   {
     keywords: ['함상토론회'],
     type: '정책 토론 행사',
+    characteristics: ['국방', '해양안보', '함정', '보안 환경', 'VIP 참석'],
     overviewBullets: [
       '해양안보 및 국방 현안 논의를 위한 정책 토론 행사',
       '군·산·학·연 관계자 참여',
       '전문가 발표, 패널토론, 관계기관 네트워킹 진행',
     ],
+    keyRoles: [
+      '해군작전기지 내 함정 공간에서 진행된 정책 토론 행사 운영.',
+      '사전등록, 참가자 관리, VIP 의전 및 현장 운영 전반 수행.',
+      '군 관계기관 및 협력사 간 운영 협업 관리.',
+    ],
+    outcomes: [
+      '보안 환경과 제한된 출입 절차를 고려한 행사 운영 경험 확보.',
+      'VIP 의전 및 관계기관 협업 역량 강화.',
+    ],
   },
   {
     keywords: ['허준축제'],
     type: '지역 문화축제',
+    characteristics: ['지역축제', '공연', '체험 프로그램', '시민 참여형 행사'],
     overviewBullets: [
       '허준 선생의 업적과 한의학·건강 문화를 알리는 지역 문화축제',
       '시민 참여형 전시, 체험, 공연 프로그램 운영',
       '지역 역사문화 자원과 건강 콘텐츠 결합',
     ],
+    keyRoles: [
+      '시민 참여형 지역축제 프로그램 운영.',
+      '공연, 체험, 전시 콘텐츠 중심의 현장 운영 및 참가자 동선 관리.',
+      '방문객 응대와 협력사 운영을 포함한 축제 현장 관리.',
+    ],
+    outcomes: [
+      '시민 참여형 축제 운영 경험 확보.',
+      '공연·체험 프로그램과 현장 동선을 통합 관리하는 운영 역량 강화.',
+    ],
   },
   {
     keywords: ['장애경제인대회', '장애인경제인대회'],
     type: '성과 공유 및 교류 행사',
+    characteristics: ['시상식', '정부기관', '포상', '기업 교류', '정책 발표'],
     overviewBullets: [
       '장애인기업 성과 공유 및 경제활동 활성화 지원 행사',
       '우수 장애경제인 포상 및 정책 발표 진행',
       '기업 교류 및 우수사례 공유 프로그램 운영',
+    ],
+    keyRoles: [
+      '정부기관 및 장애인기업 관계자가 참여한 시상·정책 행사 운영.',
+      '포상 프로그램, 참가자 관리, 현장 진행 및 관계자 응대 수행.',
+      '기업 교류와 정책 발표 흐름에 맞춘 운영 협업 관리.',
+    ],
+    outcomes: [
+      '시상식 및 정책행사 운영 경험 확보.',
+      '포상 프로그램과 현장 운영을 병행하며 공식 행사 대응 역량 강화.',
+    ],
+  },
+  {
+    keywords: ['KERIS', '케리스', '교육학술정보원'],
+    type: '학술행사',
+    characteristics: ['교육', '연구성과 공유', '다중 트랙 세션', '온라인 송출', '학술행사'],
+    overviewBullets: [
+      '교육·연구 성과와 정책 의제를 공유하는 학술행사',
+      '전문가 발표 및 다중 트랙 세션 운영',
+      '현장 세션과 온라인 송출 프로그램 병행',
+    ],
+    keyRoles: [
+      '다중 트랙 세션 기반 학술행사 운영.',
+      '제작물 관리, 홈페이지 운영, 사전등록자 관리 및 온라인 송출 운영 지원.',
+      '세션별 진행 흐름 및 행사 운영 전반 관리.',
+    ],
+    outcomes: [
+      '다중 세션 기반 컨퍼런스 운영 경험 확보.',
+      '등록·제작물·온라인 송출을 통합 관리하며 복합 행사 운영 역량 강화.',
     ],
   },
 ];
@@ -214,39 +263,107 @@ function buildPortfolioResponsibilities(tasks) {
   return sorted.slice(0, 7).map((task) => taskPhraseMap[task]?.responsibility || task);
 }
 
-function buildCareerSummary(source) {
-  const tasks = getTaskList(source);
-  const hasAny = (items) => items.some((item) => tasks.includes(item));
-  const sentences = [];
+function getUniqueLimited(items, limit) {
+  return [...new Set(items.filter(Boolean))].slice(0, limit);
+}
 
-  const roleSummary = {
-    '메인 PM': '행사 기획부터 현장 운영까지 전 과정 총괄',
-    '서브 PM': '메인 PM과 협업하여 세부 운영 및 현장 실행 관리',
-    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리',
+function analyzeEventCharacteristics(source, eventType, searchResult) {
+  const tasks = getTaskList(source);
+  const profile = getKnowledgeProfile(source.eventName);
+  const text = `${source.eventName} ${source.client} ${source.venue} ${eventType} ${searchResult?.text || ''}`;
+  const compactText = text.replace(/\s/g, '');
+  const characteristics = [...(profile?.characteristics || [])];
+  const addWhen = (keywords, values) => {
+    if (keywords.some((keyword) => compactText.includes(keyword.replace(/\s/g, '')))) {
+      characteristics.push(...values);
+    }
+  };
+
+  addWhen(['함상', '해군', '국방', '안보', '군'], ['국방', '해양안보', '보안 환경']);
+  addWhen(['심포지엄', '학술', '컨퍼런스', '포럼', '세미나', '교육', '연구'], ['학술행사', '연구성과 공유', '다중 트랙 세션']);
+  addWhen(['축제', '페스티벌', '문화'], ['지역축제', '공연', '시민 참여형 행사']);
+  addWhen(['시상', '포상', '어워드'], ['시상식', '포상']);
+  addWhen(['대회', '정책'], ['정책 발표', '관계기관 협업']);
+
+  if (tasks.includes('생중계 운영')) characteristics.push('온라인 송출');
+  if (tasks.includes('VIP 의전')) characteristics.push('VIP 참석');
+  if (tasks.some((task) => ['전시 운영', '공간 조성', '부대행사 운영'].includes(task))) characteristics.push('공간 운영');
+  if (tasks.some((task) => ['사전등록 운영', '참가자 관리', '등록데스크 운영'].includes(task))) characteristics.push('참가자 관리');
+
+  if (characteristics.length === 0) characteristics.push(eventType, '현장 운영', '관계자 협업');
+  return getUniqueLimited(characteristics, 6);
+}
+
+function buildFallbackKeyRoles(source, eventType, characteristics) {
+  const tasks = getTaskList(source);
+  const responsibilities = buildPortfolioResponsibilities(tasks);
+  const hasAny = (items) => tasks.some((task) => items.includes(task));
+  const context = characteristics.slice(0, 2).join('·') || eventType;
+  const roleText = {
+    '메인 PM': `${context} 특성을 반영한 ${eventType} 운영 총괄.`,
+    '서브 PM': `${context} 특성을 고려한 ${eventType} 세부 운영 관리.`,
+    '현장 운영 지원': `${context} 환경에 맞춘 ${eventType} 현장 운영 지원.`,
   }[source.participationLevel];
-  sentences.push(roleSummary);
+  const roles = [roleText];
 
   if (hasAny(['사전등록 운영', '참가자 관리', '등록데스크 운영'])) {
-    sentences.push('참가자 등록 체계 구축 및 운영');
+    roles.push('사전등록, 참가자 관리 및 현장 등록 운영 수행.');
   }
 
   if (hasAny(['협력사 관리', '연사 관리', 'VIP 의전'])) {
-    sentences.push('발주처·협력사·연사 간 운영 협업 관리');
+    roles.push('발주처, 협력사, 연사 및 주요 참석자 간 운영 협업 관리.');
   }
 
   if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '생중계 운영', '시스템 운영'])) {
-    sentences.push('무대·기술 운영 기반 현장 진행 관리');
+    roles.push('무대·기술·송출 흐름에 맞춘 현장 진행 관리.');
+  }
+
+  if (hasAny(['공간 조성', '전시 운영', '부대행사 운영', '동선 관리'])) {
+    roles.push('행사 공간 구성, 전시·부대행사 및 참가자 동선 운영.');
+  }
+
+  if (roles.length === 1 && responsibilities.length > 0) {
+    roles.push(`${responsibilities.slice(0, 3).join(', ')} 중심 운영 수행.`);
+  }
+
+  return getUniqueLimited(roles, 3);
+}
+
+function buildFallbackOutcomes(source, eventType, characteristics) {
+  const tasks = getTaskList(source);
+  const hasAny = (items) => tasks.some((task) => items.includes(task));
+  const characteristicsText = characteristics.slice(0, 2).join('·') || eventType;
+  const outcomes = [`${characteristicsText} 기반 ${eventType} 운영 경험 확보.`];
+
+  if (hasAny(['사전등록 운영', '참가자 관리', '등록데스크 운영'])) {
+    outcomes.push('등록·참가자 관리 체계를 통합 운영하는 실무 역량 강화.');
+  }
+
+  if (hasAny(['협력사 관리', '연사 관리', 'VIP 의전'])) {
+    outcomes.push('주요 이해관계자 응대 및 운영 협업 역량 강화.');
+  }
+
+  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '생중계 운영', '시스템 운영'])) {
+    outcomes.push('현장 진행과 기술 운영을 병행하는 복합 행사 대응 역량 강화.');
   }
 
   if (hasAny(['결과보고서 작성', '정산 관리'])) {
-    sentences.push('결과보고 및 정산 자료 관리');
+    outcomes.push('운영 결과 정리 및 사후 관리 프로세스 수행 경험 확보.');
   }
 
-  if (sentences.length === 1 && tasks.length > 0) {
-    sentences.push(`${buildPortfolioResponsibilities(tasks).slice(0, 3).join(', ')} 담당`);
-  }
+  return getUniqueLimited(outcomes, 3);
+}
 
-  return [...new Set(sentences)].slice(0, 3);
+function buildKeyRoles(source, eventType, characteristics) {
+  const profile = getKnowledgeProfile(source.eventName);
+  if (profile?.keyRoles?.length) return profile.keyRoles.slice(0, 3);
+  return buildFallbackKeyRoles(source, eventType, characteristics);
+}
+
+function buildOutcomes(source, eventType, characteristics) {
+  const profile = getKnowledgeProfile(source.eventName);
+  if (profile?.outcomes?.length) return profile.outcomes.slice(0, 3);
+  return buildFallbackOutcomes(source, eventType, characteristics);
 }
 
 function buildSearchQueries(source) {
@@ -368,8 +485,10 @@ async function generateAi(source) {
   const searchResult = await searchEventInfo(source);
   const overviewSource = searchResult ? 'search' : 'input';
   const eventOverview = searchResult ? buildSearchOverviewBullets(source, searchResult, eventType) : buildInputOverviewBullets(source, eventType);
+  const eventCharacteristics = analyzeEventCharacteristics(source, eventType, searchResult);
   const responsibilities = buildPortfolioResponsibilities(tasks);
-  const careerSummary = buildCareerSummary(source);
+  const keyRoles = buildKeyRoles(source, eventType, eventCharacteristics);
+  const outcomes = buildOutcomes(source, eventType, eventCharacteristics);
 
   return {
     eventOverview,
@@ -377,10 +496,12 @@ async function generateAi(source) {
     searchQuery: searchResult?.query || buildSearchQueries(source)[0] || '',
     searchUrl: searchResult?.url || '',
     eventType,
+    eventCharacteristics,
     taskTags: buildTaskTags(tasks),
     responsibilities,
-    careerSummary,
-    portfolioText: [...responsibilities, ...careerSummary].map((item) => `- ${item}`).join('\n'),
+    keyRoles,
+    outcomes,
+    portfolioText: [...responsibilities, ...keyRoles, ...outcomes].map((item) => `- ${item}`).join('\n'),
   };
 }
 
@@ -416,7 +537,7 @@ function getLevelClass(level) {
 }
 
 function getCardSummary(project) {
-  return project.ai.careerSummary?.[0] || project.ai.responsibilities?.[0] || '포트폴리오 문구 생성';
+  return project.ai.keyRoles?.[0] || project.ai.outcomes?.[0] || project.ai.careerSummary?.[0] || project.ai.responsibilities?.[0] || '포트폴리오 문구 생성';
 }
 
 function App() {
@@ -542,7 +663,9 @@ function App() {
 
   function copyPortfolioText() {
     if (!selectedProject) return;
-    navigator.clipboard?.writeText(selectedProject.ai.portfolioText || selectedProject.ai.careerSummary?.join('\n') || '');
+    const ai = selectedProject.ai;
+    const fallbackText = [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].join('\n');
+    navigator.clipboard?.writeText(ai.portfolioText || fallbackText || '');
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   }
@@ -820,6 +943,8 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
 
 function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
   const sourceLabel = project.ai.overviewSource === 'search' ? '검색 기반 개요' : '입력 기반 임시 개요';
+  const keyRoles = project.ai.keyRoles || project.ai.careerSummary || [];
+  const outcomes = project.ai.outcomes || [];
 
   return (
     <section className="detail-layout">
@@ -900,11 +1025,20 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
             ))}
           </ul>
         </ResultBlock>
-        <ResultBlock title="경력요약">
+        <ResultBlock title="주요 역할">
           <div className="summary-lines">
-            {(project.ai.careerSummary || []).map((item) => (
+            {keyRoles.map((item) => (
               <p key={item}>{item}</p>
             ))}
+          </div>
+        </ResultBlock>
+        <ResultBlock title="업무 성과">
+          <div className="summary-lines">
+            {outcomes.length > 0 ? (
+              outcomes.map((item) => <p key={item}>{item}</p>)
+            ) : (
+              <p className="muted-text">수정 저장 시 행사 특성 기반 업무 성과가 새로 생성됩니다.</p>
+            )}
           </div>
         </ResultBlock>
       </article>
