@@ -16,7 +16,5 @@
     "react-dom": "latest",
     "vite": "latest"
   },
-  "devDependencies": {
-    "vercel": "^54.14.2"
-  }
+  "devDependencies": {}
 }

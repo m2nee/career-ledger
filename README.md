@@ -33,8 +33,8 @@ Career Ledger is a React-based frontend MVP for turning small career notes into 
 ## Run Locally
 
 ```bash
-pnpm install
-pnpm dev --host 0.0.0.0
+npm install
+npm run dev -- --host 0.0.0.0
 ```
 
 ## Deploy To Vercel
@@ -44,15 +44,15 @@ This project is Vercel-ready as a Vite app.
 Recommended settings:
 
 - Framework preset: `Vite`
-- Install command: `pnpm install`
-- Build command: `pnpm build`
+- Install command: `npm install`
+- Build command: `npm run build`
 - Output directory: `dist`
 
 CLI preview deployment:
 
 ```bash
-pnpm install
-pnpm build
+npm install
+npm run build
 vercel
 ```
 
@@ -74,8 +74,8 @@ The included `vercel.json` pins the build command, output directory, framework, 
 6. Use these settings:
 
 - Framework preset: `Vite`
-- Install command: `pnpm install`
-- Build command: `pnpm build`
+- Install command: `npm install`
+- Build command: `npm run build`
 - Output directory: `dist`
 
 7. Click `Deploy`.
@@ -84,12 +84,13 @@ This path does not require Vercel CLI device authentication. Vercel will build f
 
 ## Data Persistence
 
-The MVP stores projects in browser `localStorage` under `career-ledger-projects-v1`.
+The MVP stores projects in browser `localStorage` under `career-ledger-projects-v2`.
 
 This means:
 
 - Data persists after refresh on the same browser and same device.
 - PC and mobile do not share data with each other.
+- First-time visitors start with an empty project list. No shared sample projects are created automatically.
 - Incognito/private browsing data may disappear when the session closes.
 - Clearing site data or browser storage removes saved projects.
 - A future Supabase integration should replace this for account-based cross-device sync.

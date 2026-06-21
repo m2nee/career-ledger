@@ -1,49 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  AlertTriangle,
   ArrowLeft,
   BriefcaseBusiness,
   CalendarDays,
   Check,
   Copy,
   Plus,
+  RotateCcw,
   Sparkles,
+  Trash2,
   TrendingUp,
   Users,
 } from 'lucide-react';
 import './styles.css';
 
-const STORAGE_KEY = 'career-ledger-projects-v1';
+const STORAGE_KEY = 'career-ledger-projects-v2';
+const LEGACY_STORAGE_KEY = 'career-ledger-projects-v1';
+const OWNER_KEY = 'career-ledger-owner-id';
 const participationLevels = ['리드', '서브', '지원'];
-
-const starterProjects = [
-  {
-    id: 'seed-1',
-    createdAt: '2026-06-21T09:00:00.000Z',
-    source: {
-      dateMode: 'period',
-      dateValue: '2024.03 - 2024.11',
-      projectName: '신규 브랜드 런칭 캠페인',
-      client: '오로라 스튜디오',
-      participationLevel: '리드',
-      note: '브랜드 메시지 정리 / 런칭 콘텐츠 운영 / 성과 리포트',
-      participantScale: 12,
-    },
-  },
-  {
-    id: 'seed-2',
-    createdAt: '2026-06-21T09:05:00.000Z',
-    source: {
-      dateMode: 'month',
-      dateValue: '2025.02',
-      projectName: '파트너 교육 운영 개선',
-      client: '넥스트랩',
-      participationLevel: '서브',
-      note: '교육자료 개편, 신청 흐름 정리, 만족도 설문 분석',
-      participantScale: 38,
-    },
-  },
-].map((project) => ({ ...project, ai: mockTranslate(project.source) }));
 
 const emptyForm = {
   dateMode: 'year',
@@ -55,14 +31,41 @@ const emptyForm = {
   participantScale: '',
 };
 
-function loadProjects() {
+function createId(prefix) {
+  if (crypto?.randomUUID) return crypto.randomUUID();
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getOwnerId() {
+  const saved = localStorage.getItem(OWNER_KEY);
+  if (saved) return saved;
+  const ownerId = createId('local-user');
+  localStorage.setItem(OWNER_KEY, ownerId);
+  return ownerId;
+}
+
+function normalizeProject(project, ownerId) {
+  if (!project?.source || project.id?.startsWith('seed-')) return null;
+  return {
+    ...project,
+    ownerId: project.ownerId || ownerId,
+    ai: project.ai || mockTranslate(project.source),
+  };
+}
+
+function loadProjects(ownerId) {
+  const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) return [];
+
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return starterProjects;
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : starterProjects;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((project) => normalizeProject(project, ownerId))
+      .filter(Boolean)
+      .filter((project) => project.ownerId === ownerId);
   } catch {
-    return starterProjects;
+    return [];
   }
 }
 
@@ -110,13 +113,16 @@ function getProjectYear(project) {
 }
 
 function App() {
-  const [projects, setProjects] = useState(loadProjects);
+  const [ownerId] = useState(getOwnerId);
+  const [projects, setProjects] = useState(() => loadProjects(ownerId));
   const [form, setForm] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   }, [projects]);
 
   const sortedProjects = useMemo(
@@ -152,7 +158,8 @@ function App() {
       participantScale: form.participantScale === '' ? '' : Number(form.participantScale),
     };
     const project = {
-      id: crypto.randomUUID(),
+      id: createId('project'),
+      ownerId,
       createdAt: new Date().toISOString(),
       source,
       ai: mockTranslate(source),
@@ -160,6 +167,28 @@ function App() {
     setProjects((current) => [project, ...current]);
     setSelectedId(project.id);
     setForm(emptyForm);
+  }
+
+  function requestDelete(projectId) {
+    setConfirmAction({ type: 'delete', projectId });
+  }
+
+  function requestReset() {
+    setConfirmAction({ type: 'reset' });
+  }
+
+  function confirmPendingAction() {
+    if (confirmAction?.type === 'delete') {
+      setProjects((current) => current.filter((project) => project.id !== confirmAction.projectId));
+      if (selectedId === confirmAction.projectId) setSelectedId(null);
+    }
+
+    if (confirmAction?.type === 'reset') {
+      setProjects([]);
+      setSelectedId(null);
+    }
+
+    setConfirmAction(null);
   }
 
   function copyPortfolioSentence() {
@@ -176,7 +205,8 @@ function App() {
           <ArrowLeft size={18} />
           목록으로
         </button>
-        <ProjectDetail project={selectedProject} copied={copied} onCopy={copyPortfolioSentence} />
+        <ProjectDetail project={selectedProject} copied={copied} onCopy={copyPortfolioSentence} onDelete={requestDelete} />
+        <ConfirmModal action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
       </main>
     );
   }
@@ -214,8 +244,10 @@ function App() {
 
       <section className="content-grid">
         <ProjectForm form={form} onChange={updateForm} onSubmit={submitProject} />
-        <ProjectList projects={sortedProjects} onSelect={setSelectedId} />
+        <ProjectList projects={sortedProjects} onSelect={setSelectedId} onDelete={requestDelete} onReset={requestReset} />
       </section>
+
+      <ConfirmModal action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
     </main>
   );
 }
@@ -307,37 +339,66 @@ function ProjectForm({ form, onChange, onSubmit }) {
   );
 }
 
-function ProjectList({ projects, onSelect }) {
+function ProjectList({ projects, onSelect, onDelete, onReset }) {
   return (
     <section className="panel">
-      <div className="section-title">
-        <p>Recent Projects</p>
-        <h2>프로젝트 목록</h2>
-      </div>
-      <div className="project-list">
-        {projects.map((project) => (
-          <button className="project-card" key={project.id} onClick={() => onSelect(project.id)}>
-            <span className="project-meta">
-              <span>{project.source.dateValue}</span>
-              <strong className={`level-pill level-${project.source.participationLevel}`}>{project.source.participationLevel}</strong>
-            </span>
-            <strong>{project.source.projectName}</strong>
-            <span>{project.source.client || '발주처 미입력'}</span>
-            <p>{project.ai.portfolioSentence}</p>
+      <div className="section-title list-title">
+        <div>
+          <p>Recent Projects</p>
+          <h2>프로젝트 목록</h2>
+        </div>
+        {projects.length > 0 && (
+          <button className="ghost-button danger-soft compact-button" onClick={onReset}>
+            <RotateCcw size={16} />
+            전체 초기화
           </button>
-        ))}
+        )}
       </div>
+
+      {projects.length === 0 ? (
+        <div className="empty-state">
+          <BriefcaseBusiness size={26} />
+          <strong>아직 저장된 프로젝트가 없습니다.</strong>
+          <p>새 프로젝트를 저장하면 이 브라우저에만 목록과 Career Insights가 기록됩니다.</p>
+        </div>
+      ) : (
+        <div className="project-list">
+          {projects.map((project) => (
+            <article className="project-card" key={project.id}>
+              <button className="project-open" onClick={() => onSelect(project.id)}>
+                <span className="project-meta">
+                  <span>{project.source.dateValue}</span>
+                  <strong className={`level-pill level-${project.source.participationLevel}`}>{project.source.participationLevel}</strong>
+                </span>
+                <strong>{project.source.projectName}</strong>
+                <span>{project.source.client || '발주처 미입력'}</span>
+                <p>{project.ai.portfolioSentence}</p>
+              </button>
+              <button className="delete-button" onClick={() => onDelete(project.id)} aria-label={`${project.source.projectName} 삭제`}>
+                <Trash2 size={16} />
+                삭제
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
-function ProjectDetail({ project, copied, onCopy }) {
+function ProjectDetail({ project, copied, onCopy, onDelete }) {
   return (
     <section className="detail-layout">
       <article className="panel">
-        <div className="section-title">
-          <p>Source Data</p>
-          <h1>{project.source.projectName}</h1>
+        <div className="detail-heading">
+          <div className="section-title">
+            <p>Source Data</p>
+            <h1>{project.source.projectName}</h1>
+          </div>
+          <button className="ghost-button danger-soft" onClick={() => onDelete(project.id)}>
+            <Trash2 size={18} />
+            삭제
+          </button>
         </div>
         <dl className="source-list">
           <div>
@@ -410,6 +471,36 @@ function ResultBlock({ title, children }) {
       <h3>{title}</h3>
       <div>{children}</div>
     </section>
+  );
+}
+
+function ConfirmModal({ action, onCancel, onConfirm }) {
+  if (!action) return null;
+
+  const isReset = action.type === 'reset';
+  const title = isReset ? '전체 데이터를 초기화할까요?' : '프로젝트 삭제';
+  const message = isReset
+    ? '저장된 모든 프로젝트와 AI 생성 결과를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.'
+    : '이 프로젝트를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.';
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <span className="modal-icon">
+          <AlertTriangle size={22} />
+        </span>
+        <h2 id="confirm-title">{title}</h2>
+        <p>{message}</p>
+        <div className="modal-actions">
+          <button className="ghost-button" onClick={onCancel}>
+            취소
+          </button>
+          <button className="danger-button" onClick={onConfirm}>
+            {isReset ? '전체 초기화' : '삭제'}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
