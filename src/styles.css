@@ -668,6 +668,13 @@ dd {
   font-weight: 900;
 }
 
+.search-query {
+  margin-top: 10px !important;
+  color: #607168 !important;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
