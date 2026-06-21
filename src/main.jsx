@@ -64,6 +64,23 @@ const taskPhraseMap = {
   '정산 관리': { responsibility: '정산 관리', summary: '정산 자료 취합 및 비용 관리' },
 };
 
+const responsibilityPriority = [
+  '행사 기획',
+  '운영계획 수립',
+  '현장 총괄 운영',
+  '사전등록 운영',
+  '참가자 관리',
+  '연사 관리',
+  '협력사 관리',
+  'VIP 의전',
+  '등록데스크 운영',
+  '프로그램 운영',
+  '콘솔 운영',
+  '생중계 운영',
+  '결과보고서 작성',
+  '정산 관리',
+];
+
 const eventKnowledgeProfiles = [
   {
     keywords: ['함상토론회'],
@@ -188,25 +205,48 @@ function buildTaskTags(tasks) {
 
 function buildPortfolioResponsibilities(tasks) {
   if (tasks.length === 0) return ['행사 운영'];
-  return tasks.map((task) => taskPhraseMap[task]?.responsibility || task);
+  const sorted = [...tasks].sort((a, b) => {
+    const indexA = responsibilityPriority.indexOf(a);
+    const indexB = responsibilityPriority.indexOf(b);
+    return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+  });
+
+  return sorted.slice(0, 7).map((task) => taskPhraseMap[task]?.responsibility || task);
 }
 
 function buildCareerSummary(source) {
   const tasks = getTaskList(source);
-  const taskSummaries = tasks.map((task) => taskPhraseMap[task]?.summary || `${task} 운영`);
-  const roleSentence = {
-    '메인 PM': '행사 기획부터 현장 운영까지 전 과정 총괄.',
-    '서브 PM': '메인 PM과 협업하여 세부 운영 및 현장 실행 관리.',
-    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리.',
+  const hasAny = (items) => items.some((item) => tasks.includes(item));
+  const sentences = [];
+
+  const roleSummary = {
+    '메인 PM': '행사 기획부터 현장 운영까지 전 과정 총괄',
+    '서브 PM': '메인 PM과 협업하여 세부 운영 및 현장 실행 관리',
+    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리',
   }[source.participationLevel];
+  sentences.push(roleSummary);
 
-  const sentences = [
-    roleSentence,
-    taskSummaries.slice(0, 2).join(', ') ? `${taskSummaries.slice(0, 2).join(', ')} 담당.` : '',
-    taskSummaries.slice(2, 4).join(', ') ? `${taskSummaries.slice(2, 4).join(', ')} 수행.` : '',
-  ].filter(Boolean);
+  if (hasAny(['사전등록 운영', '참가자 관리', '등록데스크 운영'])) {
+    sentences.push('참가자 등록 체계 구축 및 운영');
+  }
 
-  return sentences.slice(0, 3);
+  if (hasAny(['협력사 관리', '연사 관리', 'VIP 의전'])) {
+    sentences.push('발주처·협력사·연사 간 운영 협업 관리');
+  }
+
+  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '생중계 운영', '시스템 운영'])) {
+    sentences.push('무대·기술 운영 기반 현장 진행 관리');
+  }
+
+  if (hasAny(['결과보고서 작성', '정산 관리'])) {
+    sentences.push('결과보고 및 정산 자료 관리');
+  }
+
+  if (sentences.length === 1 && tasks.length > 0) {
+    sentences.push(`${buildPortfolioResponsibilities(tasks).slice(0, 3).join(', ')} 담당`);
+  }
+
+  return [...new Set(sentences)].slice(0, 3);
 }
 
 function buildSearchQueries(source) {
@@ -627,17 +667,17 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
       <form onSubmit={onSubmit}>
         <label>
           행사명
-          <input value={form.eventName} onChange={(event) => onChange('eventName', event.target.value)} placeholder="예: 제22회 함상토론회" required />
+          <input value={form.eventName} onChange={(event) => onChange('eventName', event.target.value)} placeholder="행사명 입력" required />
         </label>
 
         <div className="field-row two">
           <label>
             발주처
-            <input value={form.client} onChange={(event) => onChange('client', event.target.value)} placeholder="예: 해군본부" required />
+            <input value={form.client} onChange={(event) => onChange('client', event.target.value)} placeholder="발주처 입력" required />
           </label>
           <label>
             행사 장소
-            <input value={form.venue} onChange={(event) => onChange('venue', event.target.value)} placeholder="예: 부산 해군작전기지 마라도함" required />
+            <input value={form.venue} onChange={(event) => onChange('venue', event.target.value)} placeholder="행사 장소 입력" required />
           </label>
         </div>
 
@@ -697,7 +737,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
 
         <label>
           참가규모
-          <input type="number" min="0" value={form.participantScale} onChange={(event) => onChange('participantScale', event.target.value)} placeholder="예: 300" />
+          <input type="number" min="0" value={form.participantScale} onChange={(event) => onChange('participantScale', event.target.value)} placeholder="참가규모 입력" />
           <span className="field-help">정확한 수치가 아니어도 됩니다. 대략적인 규모를 입력해주세요.</span>
         </label>
 
