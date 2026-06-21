@@ -629,8 +629,31 @@ dd {
   padding-left: 18px;
 }
 
+.overview-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: #1b2823;
+  line-height: 1.55;
+  font-weight: 850;
+}
+
 .portfolio-list li {
   padding-left: 2px;
+}
+
+.summary-lines {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 8px;
+  background: #f3f7ef;
+}
+
+.summary-lines p {
+  margin: 0;
+  font-weight: 850;
 }
 
 .strong-list {

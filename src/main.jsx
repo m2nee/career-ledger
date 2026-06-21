@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const STORAGE_KEY = 'career-ledger-events-v5';
+const STORAGE_KEY = 'career-ledger-events-v6';
 const OWNER_KEY = 'career-ledger-owner-id';
 
 const participationLevels = ['메인 PM', '서브 PM', '현장 운영 지원'];
@@ -36,58 +36,61 @@ const taskGroups = [
 ];
 
 const taskPhraseMap = {
-  '행사 기획': { responsibility: '행사 기획', summary: '행사 콘셉트 및 운영 방향 기획' },
-  '운영계획 수립': { responsibility: '운영계획 수립', summary: '행사 운영계획 수립 및 실행 체계 정리' },
-  '제안서 작성': { responsibility: '제안서 작성', summary: '제안서 구성 및 실행 전략 문서화' },
-  '예산 관리': { responsibility: '예산 관리', summary: '행사 예산 계획 및 집행 관리' },
-  '사전등록 운영': { responsibility: '사전등록 운영', summary: '사전등록 프로세스 설계 및 운영' },
+  '행사 기획': { responsibility: '행사 기획', summary: '행사 기획 및 운영 방향 수립' },
+  '운영계획 수립': { responsibility: '운영계획 수립', summary: '운영계획 수립 및 실행 체계 정리' },
+  '제안서 작성': { responsibility: '제안서 작성', summary: '제안서 작성 및 실행 전략 문서화' },
+  '예산 관리': { responsibility: '예산 관리', summary: '예산 계획 및 집행 관리' },
+  '사전등록 운영': { responsibility: '사전등록 운영', summary: '사전등록 프로세스 운영' },
   '참가자 관리': { responsibility: '참가자 관리', summary: '참가자 등록 체계 구축 및 관리' },
   '연사 관리': { responsibility: '연사 관리', summary: '연사 커뮤니케이션 및 발표 준비 관리' },
   '협력사 관리': { responsibility: '협력사 관리', summary: '협력사 및 운영인력 관리' },
-  '홍보 운영': { responsibility: '홍보 운영', summary: '행사 홍보 채널 운영 및 참여 유도' },
-  '현장 총괄 운영': { responsibility: '현장 총괄 운영', summary: '행사 현장 운영 총괄' },
-  '등록데스크 운영': { responsibility: '등록데스크 운영', summary: '참가자 등록데스크 운영 및 현장 응대 관리' },
-  'VIP 의전': { responsibility: 'VIP 의전 지원', summary: 'VIP 의전 동선 및 현장 응대 관리' },
-  '무대 운영': { responsibility: '무대 운영', summary: '무대 진행 큐시트 및 현장 전환 관리' },
+  '홍보 운영': { responsibility: '홍보 운영', summary: '홍보 채널 운영 및 참여 유도' },
+  '현장 총괄 운영': { responsibility: '현장 총괄 운영', summary: '현장 운영 총괄' },
+  '등록데스크 운영': { responsibility: '등록데스크 운영', summary: '등록데스크 운영 및 현장 응대 관리' },
+  'VIP 의전': { responsibility: 'VIP 의전 지원', summary: 'VIP 의전 및 동선 관리' },
+  '무대 운영': { responsibility: '무대 운영', summary: '무대 진행 및 큐시트 관리' },
   '콘솔 운영': { responsibility: '콘솔 운영', summary: '콘솔 운영 및 현장 진행 신호 관리' },
   '동선 관리': { responsibility: '동선 관리', summary: '참가자 및 주요 인사 동선 관리' },
   '시나리오 작성': { responsibility: '시나리오 작성', summary: '행사 시나리오 및 진행 흐름 설계' },
-  '발표자료 관리': { responsibility: '발표자료 관리', summary: '발표자료 취합, 검수 및 현장 반영 관리' },
+  '발표자료 관리': { responsibility: '발표자료 관리', summary: '발표자료 취합 및 현장 반영 관리' },
   '프로그램 운영': { responsibility: '프로그램 운영', summary: '세부 프로그램 운영 및 시간표 관리' },
-  'AV 운영': { responsibility: 'AV 운영', summary: 'AV 장비 운영 및 현장 기술 지원' },
+  'AV 운영': { responsibility: 'AV 운영', summary: 'AV 장비 운영 및 기술 지원' },
   '생중계 운영': { responsibility: '생중계 운영', summary: '생중계 운영 및 송출 품질 관리' },
-  '시스템 운영': { responsibility: '시스템 운영', summary: '행사 운영 시스템 세팅 및 현장 관리' },
-  '공간 조성': { responsibility: '공간 조성', summary: '행사 공간 구성 및 현장 조성 관리' },
-  '전시 운영': { responsibility: '전시 운영', summary: '전시 공간 운영 및 참가자 관람 흐름 관리' },
-  '부대행사 운영': { responsibility: '부대행사 운영', summary: '부대행사 프로그램 운영 및 현장 관리' },
-  '결과보고서 작성': { responsibility: '결과보고서 작성', summary: '행사 결과보고서 작성 및 성과 정리' },
-  '정산 관리': { responsibility: '정산 관리', summary: '행사 정산 자료 취합 및 비용 관리' },
+  '시스템 운영': { responsibility: '시스템 운영', summary: '운영 시스템 세팅 및 현장 관리' },
+  '공간 조성': { responsibility: '공간 조성', summary: '행사 공간 구성 및 조성 관리' },
+  '전시 운영': { responsibility: '전시 운영', summary: '전시 공간 운영 및 관람 흐름 관리' },
+  '부대행사 운영': { responsibility: '부대행사 운영', summary: '부대행사 프로그램 운영' },
+  '결과보고서 작성': { responsibility: '결과보고서 작성', summary: '결과보고서 작성 및 성과 정리' },
+  '정산 관리': { responsibility: '정산 관리', summary: '정산 자료 취합 및 비용 관리' },
 };
 
 const eventKnowledgeProfiles = [
   {
     keywords: ['함상토론회'],
     type: '정책 토론 행사',
-    purposeAction: '해양안보와 국방 현안을 논의하기 위해',
-    background: '군, 산, 학, 연 관계자가 주요 안보 이슈를 공유하고 발전 방향을 모색하기 위해 마련되는 자리',
-    programs: ['정책 토론', '전문가 발표', '안보 현안 공유', '관계기관 교류'],
-    feature: '함정 또는 해군 관련 공간의 상징성을 활용해 해양안보 의제를 집중적으로 다루는 행사',
+    overviewBullets: [
+      '해양안보 및 국방 현안 논의를 위한 정책 토론 행사',
+      '군·산·학·연 관계자 참여',
+      '전문가 발표, 패널토론, 관계기관 네트워킹 진행',
+    ],
   },
   {
     keywords: ['허준축제'],
     type: '지역 문화축제',
-    purposeAction: '조선시대 의학자 허준 선생의 업적을 기리고 한의학 및 건강 문화를 알리기 위해',
-    background: '지역 역사문화 자원과 건강 콘텐츠를 시민 참여형 축제로 확장하기 위해 개최되는 행사',
-    programs: ['전시', '체험 프로그램', '공연', '건강 문화 콘텐츠'],
-    feature: '한의학, 건강, 역사문화 콘텐츠를 결합한 시민 참여형 축제',
+    overviewBullets: [
+      '허준 선생의 업적과 한의학·건강 문화를 알리는 지역 문화축제',
+      '시민 참여형 전시, 체험, 공연 프로그램 운영',
+      '지역 역사문화 자원과 건강 콘텐츠 결합',
+    ],
   },
   {
     keywords: ['장애경제인대회', '장애인경제인대회'],
     type: '성과 공유 및 교류 행사',
-    purposeAction: '장애인기업의 성장과 경제활동 활성화를 지원하고 우수 성과를 공유하기 위해',
-    background: '장애경제인의 경쟁력 강화와 정책적 지원 기반을 확산하기 위해 마련되는 행사',
-    programs: ['유공자 포상', '정책 발표', '기업 교류', '우수 사례 공유'],
-    feature: '장애인기업의 성과를 조명하고 경제활동 참여 확대를 도모하는 행사',
+    overviewBullets: [
+      '장애인기업 성과 공유 및 경제활동 활성화 지원 행사',
+      '우수 장애경제인 포상 및 정책 발표 진행',
+      '기업 교류 및 우수사례 공유 프로그램 운영',
+    ],
   },
 ];
 
@@ -151,6 +154,11 @@ function getTaskList(source) {
   return [...source.tasks, source.customTask?.trim()].filter(Boolean).filter((task) => task !== '기타');
 }
 
+function getKnowledgeProfile(eventName) {
+  const compactName = eventName.replace(/\s/g, '');
+  return eventKnowledgeProfiles.find((profile) => profile.keywords.some((keyword) => compactName.includes(keyword)));
+}
+
 function inferEventType(eventName) {
   const name = eventName.replace(/\s/g, '');
   const profile = getKnowledgeProfile(eventName);
@@ -174,11 +182,6 @@ function inferEventType(eventName) {
   return rules.find(([keyword]) => name.includes(keyword))?.[1] || '행사';
 }
 
-function getKnowledgeProfile(eventName) {
-  const compactName = eventName.replace(/\s/g, '');
-  return eventKnowledgeProfiles.find((profile) => profile.keywords.some((keyword) => compactName.includes(keyword)));
-}
-
 function buildTaskTags(tasks) {
   return tasks.map((task) => `#${task.replace(/\s/g, '')}`).slice(0, 8);
 }
@@ -190,14 +193,20 @@ function buildPortfolioResponsibilities(tasks) {
 
 function buildCareerSummary(source) {
   const tasks = getTaskList(source);
-  const summaries = tasks.map((task) => taskPhraseMap[task]?.summary || `${task} 운영`).slice(0, 8);
-  const roleSummary = {
-    '메인 PM': '행사 기획 및 운영 총괄',
-    '서브 PM': '메인 PM 협업 기반 세부 운영 관리',
-    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리',
+  const taskSummaries = tasks.map((task) => taskPhraseMap[task]?.summary || `${task} 운영`);
+  const roleSentence = {
+    '메인 PM': '행사 기획부터 현장 운영까지 전 과정 총괄.',
+    '서브 PM': '메인 PM과 협업하여 세부 운영 및 현장 실행 관리.',
+    '현장 운영 지원': '현장 운영 지원 및 참가자 응대 관리.',
   }[source.participationLevel];
 
-  return [...new Set([roleSummary, ...summaries])].slice(0, 8);
+  const sentences = [
+    roleSentence,
+    taskSummaries.slice(0, 2).join(', ') ? `${taskSummaries.slice(0, 2).join(', ')} 담당.` : '',
+    taskSummaries.slice(2, 4).join(', ') ? `${taskSummaries.slice(2, 4).join(', ')} 수행.` : '',
+  ].filter(Boolean);
+
+  return sentences.slice(0, 3);
 }
 
 function buildSearchQueries(source) {
@@ -205,6 +214,7 @@ function buildSearchQueries(source) {
   const client = source.client.trim();
   const year = getSourceYear(source);
   return [
+    [eventName, client, year].filter(Boolean).join(' '),
     [eventName, client].filter(Boolean).join(' '),
     eventName,
     [eventName, year].filter(Boolean).join(' '),
@@ -219,12 +229,16 @@ function flattenRelatedTopics(topics = []) {
   });
 }
 
+function normalizeSearchText(text) {
+  return text.replace(/\s+/g, ' ').replace(/\[[^\]]+\]/g, '').trim();
+}
+
 function scoreSearchCandidate(candidate, source) {
   const text = candidate.text || '';
   const compactText = text.replace(/\s/g, '');
   const compactName = source.eventName.replace(/\s/g, '');
   const year = getSourceYear(source);
-  const infoKeywords = ['목적', '개최', '주최', '주관', '프로그램', '정책', '축제', '대회', '토론', '포럼', '행사', '참여', '지원', '문화', '교류'];
+  const infoKeywords = ['목적', '개최', '주최', '주관', '프로그램', '정책', '축제', '대회', '토론', '포럼', '행사', '참여', '지원', '문화', '교류', '발표'];
   let score = 0;
 
   if (compactText.includes(compactName)) score += 5;
@@ -234,22 +248,7 @@ function scoreSearchCandidate(candidate, source) {
     if (text.includes(keyword)) score += 1;
   });
   if (text.length > 80) score += 1;
-  if (text.length > 180) score += 1;
   return score;
-}
-
-function normalizeSearchText(text) {
-  return text
-    .replace(/\s+/g, ' ')
-    .replace(/\[[^\]]+\]/g, '')
-    .replace(/\([^)]*동음이의어[^)]*\)/g, '')
-    .trim();
-}
-
-function topicParticle(text) {
-  const last = text.trim().charCodeAt(text.trim().length - 1);
-  if (last < 0xac00 || last > 0xd7a3) return '은';
-  return (last - 0xac00) % 28 === 0 ? '는' : '은';
 }
 
 async function fetchSearchCandidates(query, source) {
@@ -279,53 +278,48 @@ async function searchEventInfo(source) {
   for (const query of buildSearchQueries(source)) {
     try {
       const candidates = await fetchSearchCandidates(query, source);
-      if (candidates.length > 0) {
-        return candidates[0];
-      }
+      if (candidates.length > 0) return candidates[0];
     } catch {
-      // Ignore individual query failures and continue through the fallback priority.
+      // Continue to the next query when browser/network restrictions block a request.
     }
   }
 
   return null;
 }
 
-function buildProfileOverview(source, profile, isTemporary) {
-  const host = source.client ? `${source.client} 등 관련 기관` : '관련 기관';
-  const venueText = source.venue ? ` ${source.venue}에서 진행되는` : '';
-  const prefix = isTemporary ? '입력된 행사명과 알려진 행사 성격을 바탕으로 보면, ' : '';
-
-  return `${prefix}${source.eventName}${topicParticle(source.eventName)} ${profile.purposeAction} 개최되는 ${profile.type}이다. ${host}이 참여하는 이 행사는 ${profile.background}이며, ${profile.programs.join(', ')} 등을 통해 주요 의제와 성과를 공유한다.${venueText} 행사로서 ${profile.feature}라는 특징을 가진다.`;
+function buildProfileOverviewBullets(profile) {
+  return profile.overviewBullets.slice(0, 3);
 }
 
-function buildInputBasedOverview(source, eventType) {
+function buildInputOverviewBullets(source, eventType) {
   const profile = getKnowledgeProfile(source.eventName);
-  if (profile) return buildProfileOverview(source, profile, true);
+  if (profile) return buildProfileOverviewBullets(profile);
 
-  const dateText = formatEventDate(source);
-  const hostText = source.client ? `${source.client}가 추진하는` : '발주처와 운영 주체가 마련한';
-  const venueText = source.venue ? `${source.venue}에서 열리는` : '지정된 장소에서 열리는';
-  const datePart = dateText ? `${dateText} ` : '';
-  const scaleText = source.participantScale ? ` 약 ${source.participantScale}명 규모의 참가자를 대상으로` : ' 참가자와 주요 관계자를 대상으로';
+  const hostText = source.client ? `${source.client} 주관 ${eventType}` : `${eventType} 성격의 행사`;
+  const venueText = source.venue ? `${source.venue} 개최` : '입력 장소 기준 운영';
+  const scaleText = source.participantScale ? `약 ${source.participantScale}명 규모 참가자 대상` : '참가자 및 관계자 대상';
 
-  return `${source.eventName}은 ${hostText} ${eventType} 성격의 행사로, ${datePart}${venueText} 프로젝트이다. 공개 검색 결과를 확인하지 못한 상태이므로 세부 목적과 개최 배경은 추가 검증이 필요하지만, 입력 정보상${scaleText} 프로그램 운영, 현장 동선, 관계자 커뮤니케이션이 함께 요구되는 행사로 정리할 수 있다.`;
+  return [
+    `${hostText}`,
+    `${venueText}`,
+    `${scaleText} 프로그램 및 현장 운영`,
+  ];
 }
 
-function buildSearchBasedOverview(source, searchResult, eventType) {
+function buildSearchOverviewBullets(source, searchResult, eventType) {
   const profile = getKnowledgeProfile(source.eventName);
-  if (profile) return buildProfileOverview(source, profile, false);
+  if (profile) return buildProfileOverviewBullets(profile);
 
   const text = searchResult.text;
-  const compactName = source.eventName.replace(/\s/g, '');
-  const firstUsefulSentence = text
-    .split(/(?<=[.!?。]|다\.|요\.)\s+/)
-    .map((sentence) => sentence.trim())
-    .find((sentence) => sentence.length > 35 && !sentence.replace(/\s/g, '').startsWith(compactName));
-  const evidence = firstUsefulSentence || text.slice(0, 220);
-  const hostText = source.client ? `${source.client}와 관련된` : '공개 자료에서 확인되는';
-  const venueText = source.venue ? ` 입력된 개최 장소는 ${source.venue}이며,` : '';
+  const topicWords = ['정책', '문화', '경제', '기술', '교육', '안보', '건강', '교류', '성과', '산업'];
+  const matchedTopics = topicWords.filter((word) => text.includes(word)).slice(0, 2);
+  const agenda = matchedTopics.length > 0 ? `${matchedTopics.join('·')} 관련 주요 의제 공유` : `${eventType} 주요 의제 공유`;
 
-  return `${source.eventName}은 ${hostText} ${eventType} 성격의 행사로, ${evidence} ${venueText} 행사 목적과 주요 내용을 바탕으로 관계자 참여, 프로그램 운영, 현장 경험 설계가 함께 요구되는 프로젝트로 이해할 수 있다.`;
+  return [
+    `${source.client ? `${source.client} 관련 ` : ''}${eventType}`,
+    agenda,
+    '발표, 교류, 현장 프로그램 운영',
+  ];
 }
 
 async function generateAi(source) {
@@ -333,7 +327,7 @@ async function generateAi(source) {
   const tasks = getTaskList(source);
   const searchResult = await searchEventInfo(source);
   const overviewSource = searchResult ? 'search' : 'input';
-  const eventOverview = searchResult ? buildSearchBasedOverview(source, searchResult, eventType) : buildInputBasedOverview(source, eventType);
+  const eventOverview = searchResult ? buildSearchOverviewBullets(source, searchResult, eventType) : buildInputOverviewBullets(source, eventType);
   const responsibilities = buildPortfolioResponsibilities(tasks);
   const careerSummary = buildCareerSummary(source);
 
@@ -544,7 +538,7 @@ function App() {
         <section className="hero-copy">
           <p className="eyebrow">AI Career Memory</p>
           <h1>잊혀지는 경험을 자산으로.</h1>
-          <p>행사명을 조사하고, 사실 입력을 포트폴리오 문구로 정리합니다.</p>
+          <p>행사 정보를 짧게 정리하고, 경력 문구로 바로 전환합니다.</p>
         </section>
       </header>
 
@@ -709,7 +703,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
 
         <p className="generation-note">
           <Search size={16} />
-          행사명+발주처, 행사명, 행사명+개최연도 순서로 공개 정보를 찾아 행사 개요를 생성합니다.
+          행사명+발주처+개최연도 기준으로 먼저 검색하고, 결과가 없으면 입력 기반 임시 개요를 생성합니다.
         </p>
 
         <div className="form-actions">
@@ -847,18 +841,17 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
         </div>
         <ResultBlock title="행사 개요">
           <span className={`source-badge ${project.ai.overviewSource === 'search' ? 'source-search' : 'source-input'}`}>{sourceLabel}</span>
-          <p>{project.ai.eventOverview}</p>
+          <ul className="overview-list">
+            {(Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview]).slice(0, 3).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
           {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
           {project.ai.searchUrl && (
             <a className="source-link" href={project.ai.searchUrl} target="_blank" rel="noreferrer">
               검색 출처 보기
             </a>
           )}
-        </ResultBlock>
-        <ResultBlock title="행사유형">
-          <div className="tag-row">
-            <span>{project.ai.eventType}</span>
-          </div>
         </ResultBlock>
         <ResultBlock title="담당업무">
           <ul className="portfolio-list">
@@ -867,19 +860,12 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
             ))}
           </ul>
         </ResultBlock>
-        <ResultBlock title="업무 태그">
-          <div className="tag-row skill-tags">
-            {(project.ai.taskTags || []).map((tag) => (
-              <span key={tag}>{tag}</span>
+        <ResultBlock title="경력요약">
+          <div className="summary-lines">
+            {(project.ai.careerSummary || []).map((item) => (
+              <p key={item}>{item}</p>
             ))}
           </div>
-        </ResultBlock>
-        <ResultBlock title="경력 요약">
-          <ul className="portfolio-list strong-list">
-            {(project.ai.careerSummary || []).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
         </ResultBlock>
       </article>
     </section>
