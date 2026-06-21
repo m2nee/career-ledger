@@ -605,6 +605,13 @@ dd {
   flex-wrap: wrap;
 }
 
+.ai-action-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .result-block {
   padding-top: 14px;
   border-top: 1px solid #e2e9e1;
@@ -616,6 +623,13 @@ dd {
   justify-content: space-between;
   gap: 10px;
   margin: 0 0 10px;
+}
+
+.result-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .result-block h3 {
@@ -682,6 +696,17 @@ dd {
   min-height: 30px;
   padding: 6px 9px;
   font-size: 0.78rem;
+}
+
+.manual-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #18453b;
+  background: #ddf267;
+  font-size: 0.74rem;
+  font-weight: 900;
 }
 
 .ai-editor {

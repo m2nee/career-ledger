@@ -603,6 +603,43 @@ function buildPortfolioTextFromAi(ai) {
   return [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].map((item) => `- ${item}`).join('\n');
 }
 
+function mergeRegeneratedAi(currentAi, nextAi, scope) {
+  const manualEdits = { ...(currentAi.manualEdits || {}) };
+  const merged = {
+    ...currentAi,
+    regeneratedAt: new Date().toISOString(),
+  };
+  const apply = (field, value, options = {}) => {
+    if (!options.force && scope === 'all' && manualEdits[field]) return;
+    merged[field] = value;
+    if (options.force) delete manualEdits[field];
+  };
+
+  if (scope === 'overview' || scope === 'all') {
+    apply('eventOverview', nextAi.eventOverview, { force: scope === 'overview' });
+    apply('overviewSource', nextAi.overviewSource, { force: scope === 'overview' });
+    apply('searchQuery', nextAi.searchQuery, { force: scope === 'overview' });
+    apply('searchUrl', nextAi.searchUrl, { force: scope === 'overview' });
+    apply('searchSourceName', nextAi.searchSourceName, { force: scope === 'overview' });
+  }
+
+  if (scope === 'roles' || scope === 'all') {
+    apply('eventCharacteristics', nextAi.eventCharacteristics, { force: scope === 'roles' });
+    apply('keyRoles', nextAi.keyRoles, { force: scope === 'roles' });
+    apply('outcomes', nextAi.outcomes, { force: scope === 'roles' });
+  }
+
+  if (scope === 'all') {
+    apply('eventType', nextAi.eventType);
+    apply('taskTags', nextAi.taskTags);
+    apply('responsibilities', nextAi.responsibilities);
+  }
+
+  merged.manualEdits = manualEdits;
+  merged.portfolioText = buildPortfolioTextFromAi(merged);
+  return merged;
+}
+
 function App() {
   const [ownerId] = useState(getOwnerId);
   const [projects, setProjects] = useState(() => loadProjects(ownerId));
@@ -708,17 +745,24 @@ function App() {
     setConfirmAction({ type: 'reset' });
   }
 
-  function requestRegenerate(projectId) {
-    setConfirmAction({ type: 'regenerate', projectId });
+  function requestRegenerate(projectId, scope = 'all') {
+    setConfirmAction({ type: 'regenerate', projectId, scope });
   }
 
-  function updateProjectAi(projectId, patch) {
+  function updateProjectAi(projectId, patch, editedField) {
     setProjects((current) =>
       current.map((project) => {
         if (project.id !== projectId) return project;
+        const manualEdits = editedField
+          ? {
+              ...(project.ai.manualEdits || {}),
+              [editedField]: new Date().toISOString(),
+            }
+          : project.ai.manualEdits || {};
         const ai = {
           ...project.ai,
           ...patch,
+          manualEdits,
           manuallyEditedAt: new Date().toISOString(),
         };
         return {
@@ -733,20 +777,17 @@ function App() {
     );
   }
 
-  async function regenerateProjectAi(projectId) {
+  async function regenerateProjectAi(projectId, scope = 'all') {
     const project = projects.find((item) => item.id === projectId);
     if (!project) return;
     setIsGenerating(true);
-    const ai = await generateAi(project.source);
+    const nextAi = await generateAi(project.source);
     setProjects((current) =>
       current.map((item) =>
         item.id === projectId
           ? {
               ...item,
-              ai: {
-                ...ai,
-                regeneratedAt: new Date().toISOString(),
-              },
+              ai: mergeRegeneratedAi(item.ai, nextAi, scope),
               updatedAt: new Date().toISOString(),
             }
           : item,
@@ -770,8 +811,9 @@ function App() {
 
     if (confirmAction?.type === 'regenerate') {
       const projectId = confirmAction.projectId;
+      const scope = confirmAction.scope || 'all';
       setConfirmAction(null);
-      await regenerateProjectAi(projectId);
+      await regenerateProjectAi(projectId, scope);
       return;
     }
 
@@ -1086,7 +1128,7 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
 
   function saveAiEdit(field) {
     const patch = field === 'eventType' ? { eventType: draft.trim() || '행사' } : { [field]: normalizeEditableLines(draft) };
-    onUpdateAi(project.id, patch);
+    onUpdateAi(project.id, patch, field);
     cancelAiEdit();
   }
 
@@ -1160,17 +1202,28 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
             <p>AI Generated</p>
             <h2>포트폴리오형 결과</h2>
           </div>
-          <button className="ghost-button" onClick={onCopy}>
-            {copied ? <Check size={18} /> : <Copy size={18} />}
-            {copied ? '복사됨' : '포트폴리오 문구 복사'}
-          </button>
-          <button className="ghost-button" onClick={() => onRegenerate(project.id)} disabled={isGenerating}>
-            <RefreshCw size={18} />
-            {isGenerating ? '재생성 중' : 'AI 다시 생성'}
-          </button>
+          <div className="ai-action-group">
+            <button className="ghost-button" onClick={onCopy}>
+              {copied ? <Check size={18} /> : <Copy size={18} />}
+              {copied ? '복사됨' : '포트폴리오 문구 복사'}
+            </button>
+            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'overview')} disabled={isGenerating}>
+              <RefreshCw size={18} />
+              행사 개요 다시 생성
+            </button>
+            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'roles')} disabled={isGenerating}>
+              <RefreshCw size={18} />
+              역할/성과 다시 생성
+            </button>
+            <button className="ghost-button" onClick={() => onRegenerate(project.id, 'all')} disabled={isGenerating}>
+              <RefreshCw size={18} />
+              {isGenerating ? '재생성 중' : '전체 다시 생성'}
+            </button>
+          </div>
         </div>
         <ResultBlock
           title="행사 개요"
+          manuallyEdited={project.ai.manualEdits?.eventOverview}
           onEdit={() => startAiEdit('eventOverview', Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview])}
         >
           {editingField === 'eventOverview' ? (
@@ -1193,10 +1246,10 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
             </>
           )}
         </ResultBlock>
-        <ResultBlock title="행사유형" onEdit={() => startAiEdit('eventType', project.ai.eventType)}>
+        <ResultBlock title="행사유형" manuallyEdited={project.ai.manualEdits?.eventType} onEdit={() => startAiEdit('eventType', project.ai.eventType)}>
           {editingField === 'eventType' ? renderTextEditor('eventType') : <p className="event-type-text">{project.ai.eventType || '행사'}</p>}
         </ResultBlock>
-        <ResultBlock title="담당업무" onEdit={() => startAiEdit('responsibilities', project.ai.responsibilities || [])}>
+        <ResultBlock title="담당업무" manuallyEdited={project.ai.manualEdits?.responsibilities} onEdit={() => startAiEdit('responsibilities', project.ai.responsibilities || [])}>
           {editingField === 'responsibilities' ? (
             renderTextEditor('responsibilities')
           ) : (
@@ -1207,7 +1260,7 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
             </ul>
           )}
         </ResultBlock>
-        <ResultBlock title="주요 역할" onEdit={() => startAiEdit('keyRoles', keyRoles)}>
+        <ResultBlock title="주요 역할" manuallyEdited={project.ai.manualEdits?.keyRoles} onEdit={() => startAiEdit('keyRoles', keyRoles)}>
           {editingField === 'keyRoles' ? (
             renderTextEditor('keyRoles')
           ) : (
@@ -1218,7 +1271,7 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
             </div>
           )}
         </ResultBlock>
-        <ResultBlock title="업무 성과" onEdit={() => startAiEdit('outcomes', outcomes)}>
+        <ResultBlock title="업무 성과" manuallyEdited={project.ai.manualEdits?.outcomes} onEdit={() => startAiEdit('outcomes', outcomes)}>
           {editingField === 'outcomes' ? (
             renderTextEditor('outcomes')
           ) : (
@@ -1236,11 +1289,14 @@ function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit
   );
 }
 
-function ResultBlock({ title, children, onEdit }) {
+function ResultBlock({ title, children, onEdit, manuallyEdited }) {
   return (
     <section className="result-block">
       <div className="result-block-heading">
-        <h3>{title}</h3>
+        <div className="result-title-row">
+          <h3>{title}</h3>
+          {manuallyEdited && <span className="manual-badge">직접 수정됨</span>}
+        </div>
         {onEdit && (
           <button className="ghost-button mini-button" type="button" onClick={onEdit}>
             <Edit3 size={14} />
@@ -1278,7 +1334,7 @@ function ConfirmModal({ action, onCancel, onConfirm }) {
             취소
           </button>
           <button className="danger-button" onClick={onConfirm}>
-            {isReset ? '전체 초기화' : '삭제'}
+            {isReset ? '전체 초기화' : isRegenerate ? '다시 생성' : '삭제'}
           </button>
         </div>
       </section>
