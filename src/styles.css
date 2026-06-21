@@ -65,7 +65,10 @@ button {
 .danger-button,
 .delete-button,
 .project-meta,
-.detail-heading {
+.detail-heading,
+.form-actions,
+.card-actions,
+.detail-actions {
   display: flex;
   align-items: center;
 }
@@ -149,11 +152,20 @@ button {
   line-height: 1.6;
 }
 
-.insight-grid {
+.insight-grid,
+.insight-breakdown {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
+}
+
+.insight-grid {
+  grid-template-columns: repeat(5, 1fr);
   margin: 18px 0;
+}
+
+.insight-breakdown {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 18px;
 }
 
 .insight-card,
@@ -203,6 +215,10 @@ button {
   padding: 22px;
 }
 
+.mini-panel {
+  box-shadow: none;
+}
+
 .section-title h1,
 .section-title h2 {
   margin: 0;
@@ -222,7 +238,8 @@ button {
 form,
 .project-list,
 .ai-panel,
-.source-list {
+.source-list,
+.task-groups {
   display: grid;
   gap: 14px;
 }
@@ -247,6 +264,12 @@ textarea {
   outline: 0;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  accent-color: #18453b;
+}
+
 textarea {
   resize: vertical;
   min-height: 126px;
@@ -266,6 +289,79 @@ textarea:focus {
 
 .field-row.two {
   grid-template-columns: 1fr 1fr;
+}
+
+.disabled-field {
+  opacity: 0.5;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 15px;
+  border: 1px solid #dbe4da;
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+legend {
+  padding: 0 6px;
+  color: #344841;
+  font-size: 0.93rem;
+  font-weight: 900;
+}
+
+.radio-grid,
+.task-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-group {
+  display: grid;
+  gap: 8px;
+}
+
+.task-group h3 {
+  margin: 0;
+  color: #52665d;
+  font-size: 0.88rem;
+}
+
+.choice-pill,
+.check-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid #d5dfd4;
+  border-radius: 999px;
+  background: #fff;
+  color: #263b34;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.check-line {
+  border-radius: 8px;
+}
+
+.field-help {
+  color: #607168;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.form-actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-actions .primary-button {
+  width: auto;
 }
 
 .primary-button {
@@ -346,6 +442,9 @@ textarea:focus {
 }
 
 .project-open > span:not(.project-meta) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #5a6d64;
   font-size: 0.92rem;
   font-weight: 700;
@@ -357,11 +456,18 @@ textarea:focus {
   line-height: 1.55;
 }
 
+.card-actions {
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.card-actions button {
+  flex: 1;
+}
+
 .delete-button {
   justify-content: center;
-  width: calc(100% - 28px);
   min-height: 38px;
-  margin: 0 14px 14px;
   color: #8f251f;
   background: #fff4f2;
   border: 1px solid #f1c6c1;
@@ -374,19 +480,49 @@ textarea:focus {
   font-size: 0.76rem;
 }
 
-.level-리드 {
+.level-main {
   color: #123d33;
   background: #ddf267;
 }
 
-.level-서브 {
+.level-sub {
   color: #234052;
   background: #dceeff;
 }
 
-.level-지원 {
+.level-support {
   color: #5b3f18;
   background: #ffe5bd;
+}
+
+.breakdown-list {
+  display: grid;
+  gap: 8px;
+}
+
+.breakdown-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f4f7f1;
+}
+
+.breakdown-list span {
+  color: #344841;
+  font-weight: 800;
+}
+
+.breakdown-list strong {
+  color: #17231f;
+}
+
+.muted-text {
+  margin: 0;
+  color: #607168;
+  line-height: 1.55;
 }
 
 .empty-state {
@@ -442,6 +578,11 @@ dd {
 .detail-heading {
   justify-content: space-between;
   gap: 16px;
+}
+
+.detail-actions {
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .result-block {
@@ -544,9 +685,10 @@ dd {
 
 @media (max-width: 980px) {
   .insight-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
+  .insight-breakdown,
   .content-grid,
   .detail-layout {
     grid-template-columns: 1fr;
@@ -604,6 +746,19 @@ dd {
   .list-title {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .form-actions,
+  .card-actions,
+  .detail-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .form-actions button,
+  .card-actions button,
+  .detail-actions button {
+    width: 100%;
   }
 
   .modal-actions {
