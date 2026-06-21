@@ -610,10 +610,22 @@ dd {
   border-top: 1px solid #e2e9e1;
 }
 
+.result-block-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
 .result-block h3 {
   margin: 0 0 10px;
   color: #51655c;
   font-size: 0.92rem;
+}
+
+.result-block-heading h3 {
+  margin: 0;
 }
 
 .result-block p,
@@ -654,6 +666,40 @@ dd {
 .summary-lines p {
   margin: 0;
   font-weight: 850;
+}
+
+.event-type-text {
+  display: inline-flex;
+  width: fit-content;
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #173f34;
+  background: #edf5e8;
+  font-weight: 900;
+}
+
+.mini-button {
+  min-height: 30px;
+  padding: 6px 9px;
+  font-size: 0.78rem;
+}
+
+.ai-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-editor textarea {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .strong-list {

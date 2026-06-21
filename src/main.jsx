@@ -10,6 +10,7 @@ import {
   Edit3,
   MapPin,
   Plus,
+  RefreshCw,
   RotateCcw,
   Search,
   Sparkles,
@@ -369,12 +370,15 @@ function buildOutcomes(source, eventType, characteristics) {
 function buildSearchQueries(source) {
   const eventName = source.eventName.trim();
   const client = source.client.trim();
+  const venue = source.venue.trim();
   const year = getSourceYear(source);
   return [
     [eventName, client, year].filter(Boolean).join(' '),
+    [eventName, year].filter(Boolean).join(' '),
+    [eventName, venue].filter(Boolean).join(' '),
+    [client, eventName].filter(Boolean).join(' '),
     [eventName, client].filter(Boolean).join(' '),
     eventName,
-    [eventName, year].filter(Boolean).join(' '),
   ].filter((query, index, queries) => query && queries.indexOf(query) === index);
 }
 
@@ -391,21 +395,36 @@ function normalizeSearchText(text) {
 }
 
 function scoreSearchCandidate(candidate, source) {
-  const text = candidate.text || '';
+  const text = `${candidate.title || ''} ${candidate.text || ''}`;
   const compactText = text.replace(/\s/g, '');
   const compactName = source.eventName.replace(/\s/g, '');
+  const compactClient = source.client.replace(/\s/g, '');
+  const compactVenue = source.venue.replace(/\s/g, '');
   const year = getSourceYear(source);
-  const infoKeywords = ['목적', '개최', '주최', '주관', '프로그램', '정책', '축제', '대회', '토론', '포럼', '행사', '참여', '지원', '문화', '교류', '발표'];
+  const infoKeywords = ['목적', '개최', '주최', '주관', '프로그램', '아젠다', '정책', '축제', '대회', '토론', '포럼', '행사', '참석', '참여', '지원', '문화', '교류', '발표', '장소'];
   let score = 0;
+  const nameMatched = compactName.length >= 2 && compactText.includes(compactName);
+  const clientMatched = compactClient.length >= 2 && compactText.includes(compactClient);
+  const venueMatched = compactVenue.length >= 2 && compactText.includes(compactVenue);
+  const yearMatched = Boolean(year && compactText.includes(year));
 
-  if (compactText.includes(compactName)) score += 5;
-  if (source.client && compactText.includes(source.client.replace(/\s/g, ''))) score += 3;
-  if (year && compactText.includes(year)) score += 2;
+  if (nameMatched) score += 6;
+  if (clientMatched) score += 3;
+  if (venueMatched) score += 2;
+  if (yearMatched) score += 2;
   infoKeywords.forEach((keyword) => {
     if (text.includes(keyword)) score += 1;
   });
   if (text.length > 80) score += 1;
-  return score;
+
+  return {
+    score,
+    nameMatched,
+    clientMatched,
+    venueMatched,
+    yearMatched,
+    isReliable: nameMatched && score >= 8,
+  };
 }
 
 async function fetchSearchCandidates(query, source) {
@@ -423,9 +442,10 @@ async function fetchSearchCandidates(query, source) {
       ...candidate,
       query,
       text: normalizeSearchText(candidate.text),
-      score: scoreSearchCandidate(candidate, source),
+      title: candidate.title || source.eventName,
+      ...scoreSearchCandidate(candidate, source),
     }))
-    .filter((candidate) => candidate.score >= 3)
+    .filter((candidate) => candidate.isReliable)
     .sort((a, b) => b.score - a.score);
 }
 
@@ -463,20 +483,46 @@ function buildInputOverviewBullets(source, eventType) {
   ];
 }
 
+function includesAny(text, keywords) {
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+function buildSearchSignals(text) {
+  const signals = [];
+
+  if (includesAny(text, ['정책', '현안', '안보', '국방'])) signals.push('정책·현안 논의');
+  if (includesAny(text, ['성과', '우수사례', '사례'])) signals.push('성과 및 우수사례 공유');
+  if (includesAny(text, ['시상', '포상', '유공'])) signals.push('시상·포상 프로그램');
+  if (includesAny(text, ['교육', '연구', '학술'])) signals.push('교육·연구 의제 공유');
+  if (includesAny(text, ['축제', '문화', '공연', '체험'])) signals.push('문화·체험 프로그램');
+  if (includesAny(text, ['기업', '교류', '네트워킹'])) signals.push('기업 교류 및 네트워킹');
+  if (includesAny(text, ['발표', '강연', '세션', '토론', '패널'])) signals.push('발표·토론 세션');
+  if (includesAny(text, ['전시', '부스'])) signals.push('전시·부스 운영');
+  if (includesAny(text, ['참석', '참여', '대상'])) signals.push('관계자 및 참석 대상 참여');
+
+  return getUniqueLimited(signals, 4);
+}
+
 function buildSearchOverviewBullets(source, searchResult, eventType) {
   const profile = getKnowledgeProfile(source.eventName);
   if (profile) return buildProfileOverviewBullets(profile);
 
   const text = searchResult.text;
-  const topicWords = ['정책', '문화', '경제', '기술', '교육', '안보', '건강', '교류', '성과', '산업'];
-  const matchedTopics = topicWords.filter((word) => text.includes(word)).slice(0, 2);
-  const agenda = matchedTopics.length > 0 ? `${matchedTopics.join('·')} 관련 주요 의제 공유` : `${eventType} 주요 의제 공유`;
+  const signals = buildSearchSignals(text);
+  const purpose = signals[0] ? `${signals[0]}를 위한 ${eventType}` : `${eventType} 주요 의제 공유`;
+  const program = signals.length > 1 ? signals.slice(1, 3).join(', ') : '발표, 교류, 현장 프로그램 운영';
+  const hostVenue = [
+    source.client ? `${source.client} 관련 정보 확인` : '',
+    source.venue && searchResult.venueMatched ? `${source.venue} 개최 정보 확인` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return [
-    `${source.client ? `${source.client} 관련 ` : ''}${eventType}`,
-    agenda,
-    '발표, 교류, 현장 프로그램 운영',
-  ];
+    purpose,
+    program,
+    hostVenue || '검색 결과 기반 행사 성격 및 운영 정보 확인',
+  ].slice(0, 3);
 }
 
 async function generateAi(source) {
@@ -495,6 +541,7 @@ async function generateAi(source) {
     overviewSource,
     searchQuery: searchResult?.query || buildSearchQueries(source)[0] || '',
     searchUrl: searchResult?.url || '',
+    searchSourceName: searchResult?.title || '',
     eventType,
     eventCharacteristics,
     taskTags: buildTaskTags(tasks),
@@ -538,6 +585,22 @@ function getLevelClass(level) {
 
 function getCardSummary(project) {
   return project.ai.keyRoles?.[0] || project.ai.outcomes?.[0] || project.ai.careerSummary?.[0] || project.ai.responsibilities?.[0] || '포트폴리오 문구 생성';
+}
+
+function normalizeEditableLines(value) {
+  return value
+    .split('\n')
+    .map((line) => line.replace(/^[-*]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function stringifyEditableValue(value) {
+  if (Array.isArray(value)) return value.join('\n');
+  return value || '';
+}
+
+function buildPortfolioTextFromAi(ai) {
+  return [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].map((item) => `- ${item}`).join('\n');
 }
 
 function App() {
@@ -645,7 +708,54 @@ function App() {
     setConfirmAction({ type: 'reset' });
   }
 
-  function confirmPendingAction() {
+  function requestRegenerate(projectId) {
+    setConfirmAction({ type: 'regenerate', projectId });
+  }
+
+  function updateProjectAi(projectId, patch) {
+    setProjects((current) =>
+      current.map((project) => {
+        if (project.id !== projectId) return project;
+        const ai = {
+          ...project.ai,
+          ...patch,
+          manuallyEditedAt: new Date().toISOString(),
+        };
+        return {
+          ...project,
+          ai: {
+            ...ai,
+            portfolioText: buildPortfolioTextFromAi(ai),
+          },
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    );
+  }
+
+  async function regenerateProjectAi(projectId) {
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    setIsGenerating(true);
+    const ai = await generateAi(project.source);
+    setProjects((current) =>
+      current.map((item) =>
+        item.id === projectId
+          ? {
+              ...item,
+              ai: {
+                ...ai,
+                regeneratedAt: new Date().toISOString(),
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+    setIsGenerating(false);
+  }
+
+  async function confirmPendingAction() {
     if (confirmAction?.type === 'delete') {
       setProjects((current) => current.filter((project) => project.id !== confirmAction.projectId));
       if (selectedId === confirmAction.projectId) setSelectedId(null);
@@ -656,6 +766,13 @@ function App() {
       setProjects([]);
       setSelectedId(null);
       resetForm();
+    }
+
+    if (confirmAction?.type === 'regenerate') {
+      const projectId = confirmAction.projectId;
+      setConfirmAction(null);
+      await regenerateProjectAi(projectId);
+      return;
     }
 
     setConfirmAction(null);
@@ -677,7 +794,16 @@ function App() {
           <ArrowLeft size={18} />
           목록으로
         </button>
-        <ProjectDetail project={selectedProject} copied={copied} onCopy={copyPortfolioText} onDelete={requestDelete} onEdit={startEdit} />
+        <ProjectDetail
+          project={selectedProject}
+          copied={copied}
+          isGenerating={isGenerating}
+          onCopy={copyPortfolioText}
+          onDelete={requestDelete}
+          onEdit={startEdit}
+          onUpdateAi={updateProjectAi}
+          onRegenerate={requestRegenerate}
+        />
         <ConfirmModal action={confirmAction} onCancel={() => setConfirmAction(null)} onConfirm={confirmPendingAction} />
       </main>
     );
@@ -941,10 +1067,45 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
   );
 }
 
-function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
+function ProjectDetail({ project, copied, isGenerating, onCopy, onDelete, onEdit, onUpdateAi, onRegenerate }) {
   const sourceLabel = project.ai.overviewSource === 'search' ? '검색 기반 개요' : '입력 기반 임시 개요';
   const keyRoles = project.ai.keyRoles || project.ai.careerSummary || [];
   const outcomes = project.ai.outcomes || [];
+  const [editingField, setEditingField] = useState(null);
+  const [draft, setDraft] = useState('');
+
+  function startAiEdit(field, value) {
+    setEditingField(field);
+    setDraft(stringifyEditableValue(value));
+  }
+
+  function cancelAiEdit() {
+    setEditingField(null);
+    setDraft('');
+  }
+
+  function saveAiEdit(field) {
+    const patch = field === 'eventType' ? { eventType: draft.trim() || '행사' } : { [field]: normalizeEditableLines(draft) };
+    onUpdateAi(project.id, patch);
+    cancelAiEdit();
+  }
+
+  function renderTextEditor(field) {
+    return (
+      <div className="ai-editor">
+        <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={field === 'eventType' ? 2 : 5} />
+        <div className="edit-actions">
+          <button className="ghost-button compact-button" type="button" onClick={cancelAiEdit}>
+            취소
+          </button>
+          <button className="primary-button compact-button" type="button" onClick={() => saveAiEdit(field)}>
+            <Check size={16} />
+            저장
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="detail-layout">
@@ -1003,53 +1164,90 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit }) {
             {copied ? <Check size={18} /> : <Copy size={18} />}
             {copied ? '복사됨' : '포트폴리오 문구 복사'}
           </button>
+          <button className="ghost-button" onClick={() => onRegenerate(project.id)} disabled={isGenerating}>
+            <RefreshCw size={18} />
+            {isGenerating ? '재생성 중' : 'AI 다시 생성'}
+          </button>
         </div>
-        <ResultBlock title="행사 개요">
-          <span className={`source-badge ${project.ai.overviewSource === 'search' ? 'source-search' : 'source-input'}`}>{sourceLabel}</span>
-          <ul className="overview-list">
-            {(Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview]).slice(0, 3).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-          {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
-          {project.ai.searchUrl && (
-            <a className="source-link" href={project.ai.searchUrl} target="_blank" rel="noreferrer">
-              검색 출처 보기
-            </a>
+        <ResultBlock
+          title="행사 개요"
+          onEdit={() => startAiEdit('eventOverview', Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview])}
+        >
+          {editingField === 'eventOverview' ? (
+            renderTextEditor('eventOverview')
+          ) : (
+            <>
+              <span className={`source-badge ${project.ai.overviewSource === 'search' ? 'source-search' : 'source-input'}`}>{sourceLabel}</span>
+              <ul className="overview-list">
+                {(Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview]).slice(0, 3).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
+              {project.ai.searchSourceName && <p className="search-query">출처: {project.ai.searchSourceName}</p>}
+              {project.ai.searchUrl && (
+                <a className="source-link" href={project.ai.searchUrl} target="_blank" rel="noreferrer">
+                  검색 출처 보기
+                </a>
+              )}
+            </>
           )}
         </ResultBlock>
-        <ResultBlock title="담당업무">
-          <ul className="portfolio-list">
-            {(project.ai.responsibilities || []).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+        <ResultBlock title="행사유형" onEdit={() => startAiEdit('eventType', project.ai.eventType)}>
+          {editingField === 'eventType' ? renderTextEditor('eventType') : <p className="event-type-text">{project.ai.eventType || '행사'}</p>}
         </ResultBlock>
-        <ResultBlock title="주요 역할">
-          <div className="summary-lines">
-            {keyRoles.map((item) => (
-              <p key={item}>{item}</p>
-            ))}
-          </div>
+        <ResultBlock title="담당업무" onEdit={() => startAiEdit('responsibilities', project.ai.responsibilities || [])}>
+          {editingField === 'responsibilities' ? (
+            renderTextEditor('responsibilities')
+          ) : (
+            <ul className="portfolio-list">
+              {(project.ai.responsibilities || []).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
         </ResultBlock>
-        <ResultBlock title="업무 성과">
-          <div className="summary-lines">
-            {outcomes.length > 0 ? (
-              outcomes.map((item) => <p key={item}>{item}</p>)
-            ) : (
-              <p className="muted-text">수정 저장 시 행사 특성 기반 업무 성과가 새로 생성됩니다.</p>
-            )}
-          </div>
+        <ResultBlock title="주요 역할" onEdit={() => startAiEdit('keyRoles', keyRoles)}>
+          {editingField === 'keyRoles' ? (
+            renderTextEditor('keyRoles')
+          ) : (
+            <div className="summary-lines">
+              {keyRoles.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </div>
+          )}
+        </ResultBlock>
+        <ResultBlock title="업무 성과" onEdit={() => startAiEdit('outcomes', outcomes)}>
+          {editingField === 'outcomes' ? (
+            renderTextEditor('outcomes')
+          ) : (
+            <div className="summary-lines">
+              {outcomes.length > 0 ? (
+                outcomes.map((item) => <p key={item}>{item}</p>)
+              ) : (
+                <p className="muted-text">수정 저장 시 행사 특성 기반 업무 성과가 새로 생성됩니다.</p>
+              )}
+            </div>
+          )}
         </ResultBlock>
       </article>
     </section>
   );
 }
 
-function ResultBlock({ title, children }) {
+function ResultBlock({ title, children, onEdit }) {
   return (
     <section className="result-block">
-      <h3>{title}</h3>
+      <div className="result-block-heading">
+        <h3>{title}</h3>
+        {onEdit && (
+          <button className="ghost-button mini-button" type="button" onClick={onEdit}>
+            <Edit3 size={14} />
+            수정
+          </button>
+        )}
+      </div>
       <div>{children}</div>
     </section>
   );
@@ -1059,10 +1257,13 @@ function ConfirmModal({ action, onCancel, onConfirm }) {
   if (!action) return null;
 
   const isReset = action.type === 'reset';
-  const title = isReset ? '전체 데이터를 초기화할까요?' : '프로젝트 삭제';
+  const isRegenerate = action.type === 'regenerate';
+  const title = isReset ? '전체 데이터를 초기화할까요?' : isRegenerate ? 'AI 결과를 다시 생성할까요?' : '프로젝트 삭제';
   const message = isReset
     ? '저장된 모든 프로젝트와 AI 생성 결과를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.'
-    : '이 프로젝트를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.';
+    : isRegenerate
+      ? 'AI 결과를 다시 생성하면 직접 수정한 내용이 변경될 수 있습니다. 계속하시겠습니까?'
+      : '이 프로젝트를 삭제하시겠습니까? 삭제 후 되돌릴 수 없습니다.';
 
   return (
     <div className="modal-backdrop" role="presentation">
