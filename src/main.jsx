@@ -24,62 +24,72 @@ const OWNER_KEY = 'career-ledger-owner-id';
 
 const participationLevels = ['메인 PM', '서브 PM', '현장 운영 지원'];
 
+const categoryOptions = ['정책포럼/컨퍼런스', '국제교류', '심사/평가', '시상식', '전시/박람회', '교육/연수', '위원회/회의', '기업행사', '야외축제', '기타'];
+
 const taskGroups = [
-  { title: '기획', items: ['행사 기획', '운영계획 수립', '제안서 작성', '예산 관리'] },
-  { title: '사전 준비', items: ['사전등록 운영', '참가자 관리', '연사 관리', '협력사 관리', '홍보 운영'] },
-  { title: '현장 운영', items: ['현장 총괄 운영', '등록데스크 운영', 'VIP 의전', '무대 운영', '콘솔 운영', '동선 관리'] },
-  { title: '콘텐츠', items: ['시나리오 작성', '발표자료 관리', '프로그램 운영'] },
-  { title: '기술 운영', items: ['AV 운영', '생중계 운영', '시스템 운영'] },
-  { title: '공간 운영', items: ['공간 조성', '전시 운영', '부대행사 운영'] },
-  { title: '사후 관리', items: ['결과보고서 작성', '정산 관리'] },
-  { title: '기타', items: ['기타'] },
+  {
+    title: '공통 업무',
+    items: [
+      { id: 'registration', label: '등록데스크 운영' },
+      { id: 'participant', label: '참석자 관리' },
+      { id: 'onsite', label: '현장운영' },
+      { id: 'speaker', label: '연사관리' },
+      { id: 'protocol', label: '의전' },
+      { id: 'report', label: '결과보고서 작성' },
+      { id: 'layout', label: '행사장 도면 제작' },
+      { id: 'vendor', label: '협력업체 관리' },
+      { id: 'av', label: '시스템석/AV 운영' },
+      { id: 'script', label: 'MC 시나리오 작성' },
+      { id: 'online', label: '온라인 플랫폼 운영' },
+      { id: 'shuttle', label: '셔틀 운영' },
+    ],
+  },
 ];
 
-const taskPhraseMap = {
-  '행사 기획': { responsibility: '행사 기획', summary: '행사 기획 및 운영 방향 수립' },
-  '운영계획 수립': { responsibility: '운영계획 수립', summary: '운영계획 수립 및 실행 체계 정리' },
-  '제안서 작성': { responsibility: '제안서 작성', summary: '제안서 작성 및 실행 전략 문서화' },
-  '예산 관리': { responsibility: '예산 관리', summary: '예산 계획 및 집행 관리' },
-  '사전등록 운영': { responsibility: '사전등록 운영', summary: '사전등록 프로세스 운영' },
-  '참가자 관리': { responsibility: '참가자 관리', summary: '참가자 등록 체계 구축 및 관리' },
-  '연사 관리': { responsibility: '연사 관리', summary: '연사 커뮤니케이션 및 발표 준비 관리' },
-  '협력사 관리': { responsibility: '협력사 관리', summary: '협력사 및 운영인력 관리' },
-  '홍보 운영': { responsibility: '홍보 운영', summary: '홍보 채널 운영 및 참여 유도' },
-  '현장 총괄 운영': { responsibility: '현장 총괄 운영', summary: '현장 운영 총괄' },
-  '등록데스크 운영': { responsibility: '등록데스크 운영', summary: '등록데스크 운영 및 현장 응대 관리' },
-  'VIP 의전': { responsibility: 'VIP 의전 지원', summary: 'VIP 의전 및 동선 관리' },
-  '무대 운영': { responsibility: '무대 운영', summary: '무대 진행 및 큐시트 관리' },
-  '콘솔 운영': { responsibility: '콘솔 운영', summary: '콘솔 운영 및 현장 진행 신호 관리' },
-  '동선 관리': { responsibility: '동선 관리', summary: '참가자 및 주요 인사 동선 관리' },
-  '시나리오 작성': { responsibility: '시나리오 작성', summary: '행사 시나리오 및 진행 흐름 설계' },
-  '발표자료 관리': { responsibility: '발표자료 관리', summary: '발표자료 취합 및 현장 반영 관리' },
-  '프로그램 운영': { responsibility: '프로그램 운영', summary: '세부 프로그램 운영 및 시간표 관리' },
-  'AV 운영': { responsibility: 'AV 운영', summary: 'AV 장비 운영 및 기술 지원' },
-  '생중계 운영': { responsibility: '생중계 운영', summary: '생중계 운영 및 송출 품질 관리' },
-  '시스템 운영': { responsibility: '시스템 운영', summary: '운영 시스템 세팅 및 현장 관리' },
-  '공간 조성': { responsibility: '공간 조성', summary: '행사 공간 구성 및 조성 관리' },
-  '전시 운영': { responsibility: '전시 운영', summary: '전시 공간 운영 및 관람 흐름 관리' },
-  '부대행사 운영': { responsibility: '부대행사 운영', summary: '부대행사 프로그램 운영' },
-  '결과보고서 작성': { responsibility: '결과보고서 작성', summary: '결과보고서 작성 및 성과 정리' },
-  '정산 관리': { responsibility: '정산 관리', summary: '정산 자료 취합 및 비용 관리' },
+const commonTasks = taskGroups.flatMap((group) => group.items);
+const taskById = Object.fromEntries(commonTasks.map((task) => [task.id, task]));
+const legacyTaskAliases = {
+  '사전등록 운영': 'registration',
+  '등록데스크 운영': 'registration',
+  '참가자 관리': 'participant',
+  '참석자 관리': 'participant',
+  '현장 총괄 운영': 'onsite',
+  현장운영: 'onsite',
+  '연사 관리': 'speaker',
+  연사관리: 'speaker',
+  'VIP 의전': 'protocol',
+  의전: 'protocol',
+  '결과보고서 작성': 'report',
+  '행사장 도면 제작': 'layout',
+  '협력사 관리': 'vendor',
+  '협력업체 관리': 'vendor',
+  'AV 운영': 'av',
+  '콘솔 운영': 'av',
+  '시스템 운영': 'av',
+  '시스템석/AV 운영': 'av',
+  '시나리오 작성': 'script',
+  'MC 시나리오 작성': 'script',
+  '생중계 운영': 'online',
+  '온라인 플랫폼 운영': 'online',
+  '셔틀 운영': 'shuttle',
 };
 
-const responsibilityPriority = [
-  '행사 기획',
-  '운영계획 수립',
-  '현장 총괄 운영',
-  '사전등록 운영',
-  '참가자 관리',
-  '연사 관리',
-  '협력사 관리',
-  'VIP 의전',
-  '등록데스크 운영',
-  '프로그램 운영',
-  '콘솔 운영',
-  '생중계 운영',
-  '결과보고서 작성',
-  '정산 관리',
-];
+const taskPhraseMap = {
+  registration: { responsibility: '등록데스크 운영', summary: '등록데스크 운영 및 현장 응대 관리' },
+  participant: { responsibility: '참석자 관리', summary: '참석자 등록 체계 구축 및 관리' },
+  onsite: { responsibility: '현장운영', summary: '현장 운영 총괄' },
+  speaker: { responsibility: '연사관리', summary: '연사 커뮤니케이션 및 발표 준비 관리' },
+  protocol: { responsibility: '의전', summary: 'VIP 의전 및 동선 관리' },
+  report: { responsibility: '결과보고서 작성', summary: '결과보고서 작성 및 성과 정리' },
+  layout: { responsibility: '행사장 도면 제작', summary: '행사장 배치 및 도면 제작' },
+  vendor: { responsibility: '협력업체 관리', summary: '협력업체 및 운영인력 관리' },
+  av: { responsibility: '시스템석/AV 운영', summary: '시스템석 및 AV 운영 관리' },
+  script: { responsibility: 'MC 시나리오 작성', summary: 'MC 시나리오 및 진행 흐름 설계' },
+  online: { responsibility: '온라인 플랫폼 운영', summary: '온라인 플랫폼 및 송출 운영' },
+  shuttle: { responsibility: '셔틀 운영', summary: '참석자 이동 및 셔틀 운영 관리' },
+};
+
+const responsibilityPriority = ['onsite', 'registration', 'participant', 'speaker', 'protocol', 'vendor', 'av', 'online', 'script', 'layout', 'shuttle', 'report'];
 
 const eventKnowledgeProfiles = [
   {
@@ -164,12 +174,13 @@ const emptyForm = {
   eventName: '',
   client: '',
   venue: '',
+  category: categoryOptions[0],
   dateStart: '',
   dateEnd: '',
   isMultiDay: false,
   participationLevel: '메인 PM',
   tasks: [],
-  customTask: '',
+  specialTasks: '',
   participantScale: '',
 };
 
@@ -190,10 +201,122 @@ function loadProjects(ownerId) {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((project) => project.ownerId === ownerId && project.source?.eventName);
+    return parsed.map(normalizeProject).filter((project) => project.ownerId === ownerId && project.source?.eventName);
   } catch {
     return [];
   }
+}
+
+function normalizeTaskId(task) {
+  if (!task) return '';
+  if (taskById[task]) return task;
+  return legacyTaskAliases[task] || '';
+}
+
+function normalizeTaskIds(tasks = []) {
+  return [...new Set(tasks.map(normalizeTaskId).filter(Boolean))];
+}
+
+function getTaskLabel(taskIdOrLabel) {
+  return taskById[taskIdOrLabel]?.label || taskIdOrLabel;
+}
+
+function parseSpecialTasks(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join('\n');
+  return String(value || '').trim();
+}
+
+function getSpecialTaskList(source = {}) {
+  return parseSpecialTasks(source.specialTasks)
+    .split('\n')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getCommonTaskLabels(source = {}) {
+  return normalizeTaskIds(source.tasks || []).map(getTaskLabel);
+}
+
+function buildPeriod(source) {
+  return {
+    start: source.dateStart || '',
+    end: source.isMultiDay ? source.dateEnd || '' : '',
+    isMultiDay: Boolean(source.isMultiDay),
+    label: formatEventDate(source),
+  };
+}
+
+function normalizeSource(source = {}, project = {}) {
+  const dateStart = source.dateStart || project.period?.start || '';
+  const dateEnd = source.dateEnd || project.period?.end || '';
+  const isMultiDay = source.isMultiDay ?? Boolean(dateEnd);
+  const specialTasks = parseSpecialTasks(source.specialTasks || project.specialTasks || source.customTask || '');
+
+  return {
+    ...emptyForm,
+    ...source,
+    eventName: source.eventName || project.title || '',
+    client: source.client || project.client || '',
+    venue: source.venue || '',
+    category: source.category || project.category || categoryOptions[0],
+    dateStart,
+    dateEnd,
+    isMultiDay,
+    tasks: normalizeTaskIds(source.tasks || project.tasks || []),
+    specialTasks,
+    customTask: '',
+  };
+}
+
+function normalizeProject(project) {
+  const source = normalizeSource(project.source, project);
+  const ai = project.ai || {};
+  const overview = project.overview || ai.eventOverview || [];
+  const overviewSource = project.overviewSource || ai.overviewSource || 'input';
+
+  return {
+    ...project,
+    id: project.id || createId('event'),
+    title: project.title || source.eventName,
+    client: project.client || source.client,
+    period: project.period || buildPeriod(source),
+    category: project.category || source.category,
+    tasks: normalizeTaskIds(project.tasks || source.tasks || []),
+    specialTasks: parseSpecialTasks(project.specialTasks || source.specialTasks),
+    overview,
+    overviewSource,
+    researchStatus: project.researchStatus || ai.researchStatus || (overviewSource === 'search' ? 'verified' : overviewSource),
+    researchResults: project.researchResults || ai.researchResults || [],
+    createdAt: project.createdAt || new Date().toISOString(),
+    updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
+    source,
+    ai: {
+      ...ai,
+      eventOverview: ai.eventOverview || overview,
+      overviewSource,
+    },
+  };
+}
+
+function buildProjectRecord({ id, ownerId, source, ai, createdAt }) {
+  return {
+    id,
+    ownerId,
+    title: source.eventName,
+    client: source.client,
+    period: buildPeriod(source),
+    category: source.category,
+    tasks: source.tasks,
+    specialTasks: source.specialTasks,
+    overview: ai.eventOverview,
+    overviewSource: ai.overviewSource,
+    researchStatus: ai.researchStatus,
+    researchResults: ai.researchResults || [],
+    createdAt,
+    updatedAt: new Date().toISOString(),
+    source,
+    ai,
+  };
 }
 
 function formatDate(date) {
@@ -207,7 +330,7 @@ function formatEventDate(source) {
 }
 
 function getProjectYear(project) {
-  const match = project.source.dateStart?.match(/\d{4}/);
+  const match = (project.period?.start || project.source.dateStart)?.match(/\d{4}/);
   return match ? Number(match[0]) : 0;
 }
 
@@ -217,7 +340,7 @@ function getSourceYear(source) {
 }
 
 function getTaskList(source) {
-  return [...source.tasks, source.customTask?.trim()].filter(Boolean).filter((task) => task !== '기타');
+  return [...getCommonTaskLabels(source), ...getSpecialTaskList(source)];
 }
 
 function getKnowledgeProfile(eventName) {
@@ -227,6 +350,7 @@ function getKnowledgeProfile(eventName) {
 
 function inferEventType(sourceOrName) {
   const eventName = typeof sourceOrName === 'string' ? sourceOrName : sourceOrName.eventName;
+  if (typeof sourceOrName !== 'string' && sourceOrName.category && sourceOrName.category !== '기타') return sourceOrName.category;
   const sourceText =
     typeof sourceOrName === 'string'
       ? sourceOrName
@@ -270,12 +394,15 @@ function buildTaskTags(tasks) {
 function buildPortfolioResponsibilities(tasks) {
   if (tasks.length === 0) return ['행사 운영'];
   const sorted = [...tasks].sort((a, b) => {
-    const indexA = responsibilityPriority.indexOf(a);
-    const indexB = responsibilityPriority.indexOf(b);
+    const indexA = responsibilityPriority.indexOf(normalizeTaskId(a) || a);
+    const indexB = responsibilityPriority.indexOf(normalizeTaskId(b) || b);
     return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
   });
 
-  return sorted.slice(0, 7).map((task) => taskPhraseMap[task]?.responsibility || task);
+  return sorted.slice(0, 7).map((task) => {
+    const taskId = normalizeTaskId(task);
+    return taskPhraseMap[taskId]?.responsibility || getTaskLabel(task);
+  });
 }
 
 function getUniqueLimited(items, limit) {
@@ -300,10 +427,10 @@ function analyzeEventCharacteristics(source, eventType, searchResult) {
   addWhen(['시상', '포상', '어워드'], ['시상식', '포상']);
   addWhen(['대회', '정책'], ['정책 발표', '관계기관 협업']);
 
-  if (tasks.includes('생중계 운영')) characteristics.push('온라인 송출');
-  if (tasks.includes('VIP 의전')) characteristics.push('VIP 참석');
-  if (tasks.some((task) => ['전시 운영', '공간 조성', '부대행사 운영'].includes(task))) characteristics.push('공간 운영');
-  if (tasks.some((task) => ['사전등록 운영', '참가자 관리', '등록데스크 운영'].includes(task))) characteristics.push('참가자 관리');
+  if (tasks.some((task) => ['온라인 플랫폼 운영', '생중계 운영'].includes(task))) characteristics.push('온라인 송출');
+  if (tasks.some((task) => ['의전', 'VIP 의전'].includes(task))) characteristics.push('VIP 참석');
+  if (tasks.some((task) => ['전시 운영', '공간 조성', '부대행사 운영', '행사장 도면 제작'].includes(task))) characteristics.push('공간 운영');
+  if (tasks.some((task) => ['사전등록 운영', '참석자 관리', '참가자 관리', '등록데스크 운영'].includes(task))) characteristics.push('참가자 관리');
 
   if (characteristics.length === 0) characteristics.push(eventType, '현장 운영', '관계자 협업');
   return getUniqueLimited(characteristics, 6);
@@ -321,19 +448,19 @@ function buildFallbackKeyRoles(source, eventType, characteristics) {
   }[source.participationLevel];
   const roles = [roleText];
 
-  if (hasAny(['사전등록 운영', '참가자 관리', '등록데스크 운영'])) {
+  if (hasAny(['사전등록 운영', '참석자 관리', '참가자 관리', '등록데스크 운영'])) {
     roles.push('사전등록, 참가자 관리 및 현장 등록 운영 수행.');
   }
 
-  if (hasAny(['협력사 관리', '연사 관리', 'VIP 의전'])) {
+  if (hasAny(['협력업체 관리', '협력사 관리', '연사관리', '연사 관리', '의전', 'VIP 의전'])) {
     roles.push('발주처, 협력사, 연사 및 주요 참석자 간 운영 협업 관리.');
   }
 
-  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '생중계 운영', '시스템 운영'])) {
+  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '시스템석/AV 운영', '생중계 운영', '온라인 플랫폼 운영', '시스템 운영'])) {
     roles.push('무대·기술·송출 흐름에 맞춘 현장 진행 관리.');
   }
 
-  if (hasAny(['공간 조성', '전시 운영', '부대행사 운영', '동선 관리'])) {
+  if (hasAny(['공간 조성', '전시 운영', '부대행사 운영', '동선 관리', '행사장 도면 제작', '셔틀 운영'])) {
     roles.push('행사 공간 구성, 전시·부대행사 및 참가자 동선 운영.');
   }
 
@@ -350,15 +477,15 @@ function buildFallbackOutcomes(source, eventType, characteristics) {
   const characteristicsText = characteristics.slice(0, 2).join('·') || eventType;
   const outcomes = [`${characteristicsText} 기반 ${eventType} 운영 경험 확보.`];
 
-  if (hasAny(['사전등록 운영', '참가자 관리', '등록데스크 운영'])) {
+  if (hasAny(['사전등록 운영', '참석자 관리', '참가자 관리', '등록데스크 운영'])) {
     outcomes.push('등록·참가자 관리 체계를 통합 운영하는 실무 역량 강화.');
   }
 
-  if (hasAny(['협력사 관리', '연사 관리', 'VIP 의전'])) {
+  if (hasAny(['협력업체 관리', '협력사 관리', '연사관리', '연사 관리', '의전', 'VIP 의전'])) {
     outcomes.push('주요 이해관계자 응대 및 운영 협업 역량 강화.');
   }
 
-  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '생중계 운영', '시스템 운영'])) {
+  if (hasAny(['무대 운영', '콘솔 운영', 'AV 운영', '시스템석/AV 운영', '생중계 운영', '온라인 플랫폼 운영', '시스템 운영'])) {
     outcomes.push('현장 진행과 기술 운영을 병행하는 복합 행사 대응 역량 강화.');
   }
 
@@ -408,6 +535,14 @@ function normalizeSearchText(text) {
   return text.replace(/\s+/g, ' ').replace(/\[[^\]]+\]/g, '').trim();
 }
 
+function getDomainName(url = '') {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
 function scoreSearchCandidate(candidate, source) {
   const text = `${candidate.title || ''} ${candidate.text || ''}`;
   const compactText = text.replace(/\s/g, '');
@@ -455,6 +590,8 @@ async function fetchSearchCandidates(query, source) {
     .map((candidate) => ({
       ...candidate,
       query,
+      snippet: normalizeSearchText(candidate.text),
+      url: candidate.url || '',
       text: normalizeSearchText(candidate.text),
       title: candidate.title || source.eventName,
       ...scoreSearchCandidate(candidate, source),
@@ -464,18 +601,45 @@ async function fetchSearchCandidates(query, source) {
 }
 
 async function searchEventInfo(source) {
-  if (!source.eventName || !window.fetch) return null;
+  if (!source.eventName || !window.fetch) {
+    return {
+      status: 'not_found',
+      query: buildSearchQueries(source)[0] || '',
+      results: [],
+    };
+  }
+
+  const collected = [];
+  const seen = new Set();
 
   for (const query of buildSearchQueries(source)) {
     try {
       const candidates = await fetchSearchCandidates(query, source);
-      if (candidates.length > 0) return candidates[0];
+      candidates.forEach((candidate) => {
+        const key = candidate.url || `${candidate.title}-${candidate.text}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        collected.push({
+          title: candidate.title,
+          snippet: candidate.snippet || candidate.text,
+          url: candidate.url,
+          query,
+          score: candidate.score,
+          domain: getDomainName(candidate.url),
+        });
+      });
+      if (collected.length >= 5) break;
     } catch {
       // Continue to the next query when browser/network restrictions block a request.
     }
   }
 
-  return null;
+  const results = collected.sort((a, b) => b.score - a.score).slice(0, 5);
+  return {
+    status: results.length >= 3 ? 'verified' : results.length > 0 ? 'insufficient' : 'not_found',
+    query: buildSearchQueries(source)[0] || '',
+    results,
+  };
 }
 
 function buildProfileOverviewBullets(profile) {
@@ -553,21 +717,58 @@ function buildSearchSignals(text) {
   return getUniqueLimited(signals, 4);
 }
 
-function buildSearchOverviewBullets(source, searchResult, eventType) {
-  const profile = getKnowledgeProfile(source.eventName);
-  if (profile) return buildProfileOverviewBullets(profile);
+function buildResearchPrompt(source, research) {
+  return [
+    `행사명: ${source.eventName}`,
+    `발주기관: ${source.client}`,
+    `개최연도: ${getSourceYear(source) || '미입력'}`,
+    '규칙: 아래 검색 결과에 포함된 정보만 사용해 포트폴리오용 행사 개요를 작성한다.',
+    ...research.results.map((result, index) => `${index + 1}. ${result.title}\n${result.snippet}\n${result.url}`),
+  ].join('\n\n');
+}
 
-  const text = `${searchResult.title || ''} ${searchResult.text || ''}`;
-  const signals = buildSearchSignals(text);
-  const agenda = signals.find((signal) => signal.includes('논의') || signal.includes('공유')) || `${eventType} 주요 아젠다 공유`;
-  const programSignals = signals.filter((signal) => signal !== agenda).slice(0, 2);
-  const program = programSignals.length > 0 ? `${programSignals.join(', ')} 운영` : '발표, 토론, 교류 프로그램 운영';
-  const audience = includesAny(text, ['전문가', '관계자', '기관', '기업', '시민', '참가자'])
-    ? '전문가, 관계기관 및 참가자 대상 프로그램 구성'
-    : `${source.client || '관계기관'} 및 참가자 대상 프로그램 구성`;
+function pickSearchFact(text, groups, fallback = '') {
+  const found = groups.find(({ keywords }) => includesAny(text, keywords));
+  return found?.value || fallback;
+}
+
+function buildSearchOverviewBullets(source, research, eventType) {
+  const text = research.results.map((result) => `${result.title} ${result.snippet}`).join(' ');
+  const purpose = pickSearchFact(
+    text,
+    [
+      { keywords: ['정책', '현안', '안보', '국방'], value: '정책 현안 및 주요 의제 논의를 위한 행사' },
+      { keywords: ['성과', '우수사례', '연구'], value: '성과 공유 및 주요 사례 확산을 위한 행사' },
+      { keywords: ['시상', '포상', '유공'], value: '우수 성과 포상 및 교류를 위한 행사' },
+      { keywords: ['축제', '문화', '공연', '체험'], value: '문화 콘텐츠와 참여 프로그램 중심 행사' },
+      { keywords: ['전시', '박람회', '부스'], value: '산업 정보와 주요 콘텐츠를 소개하는 전시 행사' },
+    ],
+    `${eventType} 관련 공식 자료 기반 행사`,
+  );
+  const audience = pickSearchFact(
+    text,
+    [
+      { keywords: ['전문가', '관계자', '기관'], value: '전문가, 관계기관 및 행사 관계자 참여' },
+      { keywords: ['기업', '경제인'], value: '기업 및 산업 관계자 참여' },
+      { keywords: ['시민', '주민', '방문객'], value: '시민 및 방문객 참여' },
+      { keywords: ['학생', '교원', '교육'], value: '교육 분야 관계자 및 참가자 참여' },
+    ],
+    '참가자 및 관계기관 대상 프로그램 구성',
+  );
+  const program = pickSearchFact(
+    text,
+    [
+      { keywords: ['발표', '강연', '기조'], value: '기조강연 및 발표 프로그램 운영' },
+      { keywords: ['토론', '패널', '세션'], value: '세션, 패널토론 및 의제 공유 프로그램 운영' },
+      { keywords: ['시상', '포상'], value: '시상, 포상 및 교류 프로그램 운영' },
+      { keywords: ['전시', '부스'], value: '전시 부스 및 현장 관람 프로그램 운영' },
+      { keywords: ['공연', '체험'], value: '공연, 체험 및 부대 프로그램 운영' },
+    ],
+    '발표, 토론, 교류 프로그램 운영',
+  );
 
   return [
-    `${agenda}를 중심으로 한 ${eventType}`,
+    purpose,
     audience,
     program,
   ].slice(0, 3);
@@ -576,10 +777,15 @@ function buildSearchOverviewBullets(source, searchResult, eventType) {
 async function generateAi(source) {
   const eventType = inferEventType(source);
   const tasks = getTaskList(source);
-  const searchResult = await searchEventInfo(source);
-  const overviewSource = searchResult ? 'search' : 'input';
-  const eventOverview = searchResult ? buildSearchOverviewBullets(source, searchResult, eventType) : buildInputOverviewBullets(source, eventType);
-  const eventCharacteristics = analyzeEventCharacteristics(source, eventType, searchResult);
+  const research = await searchEventInfo(source);
+  const hasVerifiedResearch = research.status === 'verified';
+  const overviewSource = hasVerifiedResearch ? 'search' : research.status === 'insufficient' ? 'insufficient' : 'not_found';
+  const eventOverview = hasVerifiedResearch
+    ? buildSearchOverviewBullets(source, research, eventType)
+    : research.status === 'insufficient'
+      ? ['검색 결과 부족: 공식 자료가 충분하지 않아 행사 개요 초안을 생성하지 않았습니다.']
+      : ['공식 자료를 찾지 못했습니다. 행사 개요를 직접 입력해주세요.'];
+  const eventCharacteristics = analyzeEventCharacteristics(source, eventType, { text: research.results.map((result) => result.snippet).join(' ') });
   const responsibilities = buildPortfolioResponsibilities(tasks);
   const keyRoles = buildKeyRoles(source, eventType, eventCharacteristics);
   const outcomes = buildOutcomes(source, eventType, eventCharacteristics);
@@ -587,9 +793,12 @@ async function generateAi(source) {
   return {
     eventOverview,
     overviewSource,
-    searchQuery: searchResult?.query || buildSearchQueries(source)[0] || '',
-    searchUrl: searchResult?.url || '',
-    searchSourceName: searchResult?.title || '',
+    searchQuery: research.query || buildSearchQueries(source)[0] || '',
+    searchUrl: research.results[0]?.url || '',
+    searchSourceName: research.results[0]?.title || '',
+    researchStatus: research.status,
+    researchResults: research.results,
+    researchPrompt: hasVerifiedResearch ? buildResearchPrompt(source, research) : '',
     eventType,
     eventCharacteristics,
     taskTags: buildTaskTags(tasks),
@@ -609,8 +818,15 @@ function buildInsights(projects) {
     return acc;
   }, {});
   const types = projects.reduce((acc, project) => {
-    const type = project.ai.eventType || '행사';
+    const type = project.category || project.source.category || project.ai.eventType || '행사';
     acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+  const taskStats = projects.reduce((acc, project) => {
+    normalizeTaskIds(project.tasks || project.source.tasks || []).forEach((taskId) => {
+      const label = getTaskLabel(taskId);
+      acc[label] = (acc[label] || 0) + 1;
+    });
     return acc;
   }, {});
 
@@ -622,6 +838,7 @@ function buildInsights(projects) {
     largestEvent: largest?.source.participantScale ? `${largest.source.eventName} (${largest.source.participantScale}명)` : '아직 없음',
     yearly,
     types,
+    taskStats,
   };
 }
 
@@ -701,8 +918,10 @@ function App() {
       eventName: form.eventName.trim(),
       client: form.client.trim(),
       venue: form.venue.trim(),
+      category: form.category || categoryOptions[0],
       dateEnd: form.isMultiDay ? form.dateEnd : '',
-      customTask: form.tasks.includes('기타') ? form.customTask.trim() : '',
+      tasks: normalizeTaskIds(form.tasks),
+      specialTasks: parseSpecialTasks(form.specialTasks),
       participantScale: form.participantScale === '' ? '' : Number(form.participantScale),
     };
     const ai = await generateAi(source);
@@ -711,12 +930,13 @@ function App() {
       setProjects((current) =>
         current.map((project) =>
           project.id === editingId
-            ? {
-                ...project,
+            ? buildProjectRecord({
+                id: project.id,
+                ownerId: project.ownerId,
                 source,
                 ai,
-                updatedAt: new Date().toISOString(),
-              }
+                createdAt: project.createdAt,
+              })
             : project,
         ),
       );
@@ -726,14 +946,13 @@ function App() {
       return;
     }
 
-    const project = {
+    const project = buildProjectRecord({
       id: createId('event'),
-      ownerId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       source,
       ai,
-    };
+      ownerId,
+      createdAt: new Date().toISOString(),
+    });
 
     setProjects((current) => [project, ...current]);
     setSelectedId(project.id);
@@ -744,7 +963,7 @@ function App() {
   function startEdit(project) {
     setEditingId(project.id);
     setSelectedId(null);
-    setForm(project.source);
+    setForm(normalizeSource(project.source, project));
     window.setTimeout(() => document.getElementById('add-project')?.scrollIntoView({ behavior: 'smooth' }), 0);
   }
 
@@ -774,6 +993,8 @@ function App() {
         };
         return {
           ...project,
+          overview: ai.eventOverview || project.overview,
+          overviewSource: ai.overviewSource || project.overviewSource,
           ai: {
             ...ai,
             portfolioText: buildPortfolioTextFromAi(ai),
@@ -925,8 +1146,6 @@ function Breakdown({ title, items, emptyText }) {
 }
 
 function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, onSubmit, onCancelEdit }) {
-  const needsCustomTask = form.tasks.includes('기타');
-
   return (
     <section className="panel form-panel" id="add-project">
       <div className="section-title">
@@ -949,6 +1168,17 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
             <input value={form.venue} onChange={(event) => onChange('venue', event.target.value)} placeholder="행사 장소 입력" required />
           </label>
         </div>
+
+        <label>
+          행사 성격
+          <select value={form.category} onChange={(event) => onChange('category', event.target.value)} required>
+            {categoryOptions.map((category) => (
+              <option value={category} key={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="field-row two">
           <label>
@@ -986,9 +1216,9 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
                 <h3>{group.title}</h3>
                 <div className="task-grid">
                   {group.items.map((task) => (
-                    <label className="choice-pill" key={task}>
-                      <input type="checkbox" checked={form.tasks.includes(task)} onChange={() => onToggleTask(task)} />
-                      {task}
+                    <label className="choice-pill" key={task.id}>
+                      <input type="checkbox" checked={form.tasks.includes(task.id)} onChange={() => onToggleTask(task.id)} />
+                      {task.label}
                     </label>
                   ))}
                 </div>
@@ -997,12 +1227,15 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
           </div>
         </fieldset>
 
-        {needsCustomTask && (
-          <label>
-            기타 담당업무
-            <input value={form.customTask} onChange={(event) => onChange('customTask', event.target.value)} placeholder="직접 입력" />
-          </label>
-        )}
+        <label>
+          특수 업무
+          <textarea
+            value={form.specialTasks}
+            onChange={(event) => onChange('specialTasks', event.target.value)}
+            placeholder="예: RFID 카드 사전 분류, 해군기지 출입정보 취합, 서울투어 프로그램 기획"
+          />
+          <span className="field-help">체크박스로 표현하기 어려운 세부 업무를 줄바꿈으로 입력해주세요.</span>
+        </label>
 
         <label>
           참가규모
@@ -1012,7 +1245,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
 
         <p className="generation-note">
           <Search size={16} />
-          행사명+발주처+개최연도 기준으로 먼저 검색하고, 결과가 없으면 입력 기반 임시 개요를 생성합니다.
+          행사명+발주처+개최연도 기준으로 검색하고, 공식 자료가 부족하면 개요를 확정 생성하지 않습니다.
         </p>
 
         <div className="form-actions">
@@ -1060,9 +1293,9 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
               <button className="project-open" onClick={() => onSelect(project.id)}>
                 <span className="project-meta">
                   <span>{formatEventDate(project.source)}</span>
-                  <strong className={`level-pill ${getLevelClass(project.source.participationLevel)}`}>{project.source.participationLevel}</strong>
+                  <strong className={`level-pill ${getLevelClass(project.source.participationLevel)}`}>{project.category || project.source.category}</strong>
                 </span>
-                <strong>{project.source.eventName}</strong>
+                <strong>{project.title || project.source.eventName}</strong>
                 <span>
                   <MapPin size={14} />
                   {project.source.venue}
@@ -1088,7 +1321,15 @@ function ProjectList({ projects, onSelect, onDelete, onEdit, onReset }) {
 }
 
 function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }) {
-  const sourceLabel = project.ai.overviewSource === 'search' ? '검색 기반 개요' : '입력 기반 임시 개요';
+  const sourceLabel =
+    project.ai.overviewSource === 'search'
+      ? '검색 기반 생성'
+      : project.ai.overviewSource === 'insufficient'
+        ? '검색 결과 부족'
+        : project.ai.overviewSource === 'not_found'
+          ? '공식 자료 없음'
+          : '입력 기반 임시 개요';
+  const sourceClass = project.ai.overviewSource === 'search' ? 'source-search' : project.ai.overviewSource === 'insufficient' ? 'source-warning' : 'source-input';
   const keyRoles = project.ai.keyRoles || project.ai.careerSummary || [];
   const outcomes = project.ai.outcomes || [];
   const [editingField, setEditingField] = useState(null);
@@ -1133,7 +1374,7 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
         <div className="detail-heading">
           <div className="section-title">
             <p>Source Data</p>
-            <h1>{project.source.eventName}</h1>
+            <h1>{project.title || project.source.eventName}</h1>
           </div>
           <div className="detail-actions">
             <button className="ghost-button" onClick={() => onEdit(project)}>
@@ -1149,15 +1390,19 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
         <dl className="source-list">
           <div>
             <dt>행사 날짜</dt>
-            <dd>{formatEventDate(project.source)}</dd>
+            <dd>{project.period?.label || formatEventDate(project.source)}</dd>
           </div>
           <div>
             <dt>발주처</dt>
-            <dd>{project.source.client}</dd>
+            <dd>{project.client || project.source.client}</dd>
           </div>
           <div>
             <dt>행사 장소</dt>
             <dd>{project.source.venue}</dd>
+          </div>
+          <div>
+            <dt>행사 성격</dt>
+            <dd>{project.category || project.source.category}</dd>
           </div>
           <div>
             <dt>참여수준</dt>
@@ -1168,8 +1413,12 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
             <dd>{project.source.participantScale ? `${project.source.participantScale}명` : '미입력'}</dd>
           </div>
           <div className="full">
-            <dt>담당업무 원본</dt>
-            <dd>{getTaskList(project.source).join(', ') || '미입력'}</dd>
+            <dt>공통 업무</dt>
+            <dd>{getCommonTaskLabels(project.source).join(', ') || '미입력'}</dd>
+          </div>
+          <div className="full">
+            <dt>특수 업무</dt>
+            <dd>{getSpecialTaskList(project.source).join(', ') || '미입력'}</dd>
           </div>
         </dl>
       </article>
@@ -1194,18 +1443,31 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
             renderTextEditor('eventOverview')
           ) : (
             <>
-              <span className={`source-badge ${project.ai.overviewSource === 'search' ? 'source-search' : 'source-input'}`}>{sourceLabel}</span>
+              <span className={`source-badge ${sourceClass}`}>{sourceLabel}</span>
               <ul className="overview-list">
                 {(Array.isArray(project.ai.eventOverview) ? project.ai.eventOverview : [project.ai.eventOverview]).slice(0, 3).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
               {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
-              {project.ai.searchSourceName && <p className="search-query">출처: {project.ai.searchSourceName}</p>}
-              {project.ai.searchUrl && (
-                <a className="source-link" href={project.ai.searchUrl} target="_blank" rel="noreferrer">
-                  검색 출처 보기
-                </a>
+              {project.ai.researchResults?.length > 0 && (
+                <div className="source-list-mini">
+                  <strong>참고 출처</strong>
+                  <ul>
+                    {project.ai.researchResults.slice(0, 5).map((result) => (
+                      <li key={`${result.title}-${result.url}`}>
+                        {result.url ? (
+                          <a href={result.url} target="_blank" rel="noreferrer">
+                            {result.title || result.domain || '검색 결과'}
+                          </a>
+                        ) : (
+                          <span>{result.title || '검색 결과'}</span>
+                        )}
+                        {result.snippet && <p>{result.snippet}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </>
           )}

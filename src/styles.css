@@ -747,12 +747,49 @@ dd {
   background: #ffe5bd;
 }
 
+.source-warning {
+  color: #5d3b0a;
+  background: #ffe08a;
+}
+
 .source-link {
   display: inline-flex;
   margin-top: 10px;
   color: #18453b;
   font-size: 0.86rem;
   font-weight: 900;
+}
+
+.source-list-mini {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7faf4;
+}
+
+.source-list-mini strong {
+  color: #344841;
+  font-size: 0.84rem;
+}
+
+.source-list-mini ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.source-list-mini a {
+  color: #18453b;
+  font-weight: 900;
+}
+
+.source-list-mini p {
+  margin-top: 3px !important;
+  color: #607168 !important;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .search-query {

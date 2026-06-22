@@ -1,6 +1,6 @@
-# Career Ledger v0.10
+# Career Ledger v0.12
 
-Career Ledger는 MICE PM의 행사 경험을 포트폴리오 자산으로 전환하는 React 기반 MVP입니다. 사용자는 행사 사실만 입력하고, 앱은 행사 특성을 분석해 행사 개요, 담당업무, 주요 역할, 업무 성과를 생성합니다.
+Career Ledger는 MICE PM의 행사 경험을 구조화하고 포트폴리오 작성 시간을 줄이는 React 기반 MVP입니다. 이번 버전은 AI 고도화보다 행사 데이터 구조 안정화와 KPI 확장 기반을 우선합니다.
 
 ## 핵심 방향
 
@@ -9,7 +9,9 @@ Career Ledger는 MICE PM의 행사 경험을 포트폴리오 자산으로 전환
 - 담당업무는 핵심 업무만 최대 5~7개 노출
 - 주요 역할은 행사 특성과 참여수준을 반영한 최대 3개 문장
 - 업무 성과는 확보한 경험과 역량 중심의 최대 3개 문장
-- 전체 선택값은 `source.tasks`에 저장하고, 화면 표시용 핵심 업무는 `ai.responsibilities`에 별도 생성
+- 행사 성격은 사용자가 직접 선택
+- 공통 업무는 id 기반 `tasks` 배열로 저장
+- 특수 업무는 `specialTasks`에 여러 줄 텍스트로 저장
 - AI 생성 결과는 상세 화면에서 직접 수정 가능
 - AI는 초안을 제공하고 사용자 수정본을 최종본으로 간주
 
@@ -24,9 +26,26 @@ Career Ledger는 MICE PM의 행사 경험을 포트폴리오 자산으로 전환
 5. `행사명 + 발주처`
 6. `행사명`
 
-검색 결과가 행사명과 충분히 일치하고 목적, 주최/주관, 프로그램, 장소, 참석 대상 등 행사 정보 신호가 확인될 때만 `[검색 기반 개요]`로 표시합니다.
+검색 결과가 행사명과 충분히 일치하고 3건 이상 수집될 때만 `[검색 기반 생성]`으로 표시합니다.
 
-검색 실패 시 `[입력 기반 임시 개요]`로 표시합니다.
+검색 결과가 1~2건이면 `[검색 결과 부족]`으로 표시하고 개요 초안을 확정 생성하지 않습니다.
+
+검색 결과가 없으면 `[공식 자료 없음]`으로 표시하고 가짜 개요를 생성하지 않습니다.
+
+검색 결과는 다음 구조로 저장됩니다.
+
+```js
+researchStatus: "verified | insufficient | not_found",
+researchResults: [
+  {
+    title: "검색 결과 제목",
+    snippet: "검색 결과 요약",
+    url: "https://...",
+    domain: "example.org"
+  }
+],
+researchPrompt: "검색 결과에 포함된 정보만 사용하도록 구성한 개요 생성 입력값"
+```
 
 ## AI 결과 수정
 
@@ -79,14 +98,32 @@ AI 재생성 버튼은 제공하지 않습니다. 사용자가 직접 수정한 
     eventName: "행사명",
     client: "발주처",
     venue: "행사 장소",
+    category: "정책포럼/컨퍼런스",
     dateStart: "2026-06-11",
     dateEnd: "",
     isMultiDay: false,
     participationLevel: "메인 PM",
-    tasks: ["행사 기획", "참가자 관리", "VIP 의전"],
-    customTask: "",
+    tasks: ["registration", "participant", "protocol"],
+    specialTasks: "RFID 카드 사전 분류\n해군기지 출입정보 취합",
     participantScale: 300
   },
+  title: "행사명",
+  client: "발주처",
+  period: {
+    start: "2026-06-11",
+    end: "",
+    isMultiDay: false,
+    label: "2026.06.11"
+  },
+  category: "정책포럼/컨퍼런스",
+  tasks: ["registration", "participant", "protocol"],
+  specialTasks: "RFID 카드 사전 분류\n해군기지 출입정보 취합",
+  overview: [
+    "해양안보 및 국방 현안 논의를 위한 정책 토론 행사",
+    "군·산·학·연 관계자 참여",
+    "전문가 발표, 패널토론, 관계기관 네트워킹 진행"
+  ],
+  overviewSource: "search | input",
   ai: {
     eventOverview: [
       "해양안보 및 국방 현안 논의를 위한 정책 토론 행사",
@@ -97,6 +134,16 @@ AI 재생성 버튼은 제공하지 않습니다. 사용자가 직접 수정한 
     searchQuery: "제22회 함상토론회 해군본부 2026",
     searchUrl: "",
     searchSourceName: "",
+    researchStatus: "verified",
+    researchResults: [
+      {
+        title: "검색 결과 제목",
+        snippet: "검색 결과 요약",
+        url: "https://example.org",
+        domain: "example.org"
+      }
+    ],
+    researchPrompt: "행사명, 발주기관, 개최연도, 검색 결과를 포함한 개요 생성 입력값",
     eventType: "정책 토론 행사",
     eventCharacteristics: ["국방", "해양안보", "함정", "보안 환경", "VIP 참석"],
     taskTags: ["#행사기획", "#참가자관리", "#VIP의전"],
@@ -126,10 +173,15 @@ AI 재생성 버튼은 제공하지 않습니다. 사용자가 직접 수정한 
 
 - 행사 저장, 목록 표시, 상세 보기
 - 행사 수정, 삭제, 전체 초기화
+- 행사 성격 직접 선택
+- 공통 업무 id 기반 체크박스 저장
+- 특수 업무 여러 줄 직접 입력
 - 단일 날짜 및 기간 행사 입력
 - 참여수준 라디오 버튼
-- 담당업무 그룹별 체크박스와 기타 직접 입력
 - 검색 기반/입력 기반 임시 개요 구분
+- 검색 기반 생성/검색 결과 부족/공식 자료 없음 상태 구분
+- 검색 결과 3~5건의 제목, 요약, URL 저장 및 상세 화면 표시
+- 검색 결과에 포함된 정보만 기반으로 행사 개요 초안 생성
 - 행사명, 발주처, 연도, 장소 기반 검색 쿼리 강화
 - 검색 실패 시 행사명, 발주처, 장소, 담당업무 기반 개요 초안 생성
 - 정책 토론회, 학술 심포지엄, 국제회의, 시상식, 전시회, 박람회, 포럼, 축제, 컨퍼런스, 워크숍 등 행사유형 자동 분류
@@ -141,6 +193,7 @@ AI 재생성 버튼은 제공하지 않습니다. 사용자가 직접 수정한 
 - Career Insights 표시
 - 포트폴리오 문구 복사
 - 브라우저/기기별 localStorage 분리 저장
+- 기존 한글 업무명 기반 localStorage 데이터 호환 로딩
 
 ## 로컬 실행
 
