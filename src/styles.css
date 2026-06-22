@@ -792,6 +792,29 @@ dd {
   line-height: 1.45;
 }
 
+.attempted-query-list {
+  margin-top: 10px;
+  color: #607168;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.attempted-query-list summary {
+  cursor: pointer;
+  color: #18453b;
+}
+
+.attempted-query-list ol {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.attempted-query-list li {
+  line-height: 1.45;
+}
+
 .search-query {
   margin-top: 10px !important;
   color: #607168 !important;

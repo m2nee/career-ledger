@@ -287,6 +287,7 @@ function normalizeProject(project) {
     overviewSource,
     researchStatus: project.researchStatus || ai.researchStatus || (overviewSource === 'search' ? 'verified' : overviewSource),
     researchResults: project.researchResults || ai.researchResults || [],
+    searchAttemptedQueries: project.searchAttemptedQueries || ai.searchAttemptedQueries || [],
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
     source,
@@ -312,6 +313,7 @@ function buildProjectRecord({ id, ownerId, source, ai, createdAt }) {
     overviewSource: ai.overviewSource,
     researchStatus: ai.researchStatus,
     researchResults: ai.researchResults || [],
+    searchAttemptedQueries: ai.searchAttemptedQueries || [],
     createdAt,
     updatedAt: new Date().toISOString(),
     source,
@@ -513,14 +515,27 @@ function buildSearchQueries(source) {
   const client = source.client.trim();
   const venue = source.venue.trim();
   const year = getSourceYear(source);
-  return [
+  const compactClient = client
+    .replace(/\([^)]*\)/g, '')
+    .replace(/주식회사|재단법인|사단법인|기관|센터|본부|청|부|처$/g, '')
+    .trim();
+  const baseQueries = [
     [eventName, client, year].filter(Boolean).join(' '),
+    [eventName, client].filter(Boolean).join(' '),
     [eventName, year].filter(Boolean).join(' '),
+    [eventName, '보도자료'].filter(Boolean).join(' '),
+    [eventName, '개최'].filter(Boolean).join(' '),
+    [eventName, '공지'].filter(Boolean).join(' '),
+    [eventName, compactClient, year].filter(Boolean).join(' '),
+    [eventName, compactClient].filter(Boolean).join(' '),
     [eventName, venue].filter(Boolean).join(' '),
     [client, eventName].filter(Boolean).join(' '),
-    [eventName, client].filter(Boolean).join(' '),
     eventName,
-  ].filter((query, index, queries) => query && queries.indexOf(query) === index);
+  ];
+
+  return baseQueries
+    .map((query) => query.replace(/\s+/g, ' ').trim())
+    .filter((query, index, queries) => query && queries.indexOf(query) === index);
 }
 
 function flattenRelatedTopics(topics = []) {
@@ -601,20 +616,26 @@ async function fetchSearchCandidates(query, source) {
 }
 
 async function searchEventInfo(source) {
+  const attemptedQueries = buildSearchQueries(source);
   if (!source.eventName || !window.fetch) {
     return {
       status: 'not_found',
-      query: buildSearchQueries(source)[0] || '',
+      query: attemptedQueries[0] || '',
       results: [],
+      attemptedQueries,
     };
   }
 
   const collected = [];
   const seen = new Set();
 
-  for (const query of buildSearchQueries(source)) {
+  for (const query of attemptedQueries) {
     try {
       const candidates = await fetchSearchCandidates(query, source);
+      console.info('[Career Ledger] search attempt', {
+        query,
+        resultCount: candidates.length,
+      });
       candidates.forEach((candidate) => {
         const key = candidate.url || `${candidate.title}-${candidate.text}`;
         if (seen.has(key)) return;
@@ -629,16 +650,26 @@ async function searchEventInfo(source) {
         });
       });
       if (collected.length >= 5) break;
-    } catch {
+    } catch (error) {
+      console.info('[Career Ledger] search attempt failed', {
+        query,
+        message: error?.message || 'unknown error',
+      });
       // Continue to the next query when browser/network restrictions block a request.
     }
   }
 
   const results = collected.sort((a, b) => b.score - a.score).slice(0, 5);
+  console.info('[Career Ledger] search summary', {
+    attemptedQueries,
+    collected: results.length,
+  });
+
   return {
     status: results.length >= 3 ? 'verified' : results.length > 0 ? 'insufficient' : 'not_found',
-    query: buildSearchQueries(source)[0] || '',
+    query: results[0]?.query || attemptedQueries[0] || '',
     results,
+    attemptedQueries,
   };
 }
 
@@ -799,6 +830,7 @@ async function generateAi(source) {
     researchStatus: research.status,
     researchResults: research.results,
     researchPrompt: hasVerifiedResearch ? buildResearchPrompt(source, research) : '',
+    searchAttemptedQueries: research.attemptedQueries || [],
     eventType,
     eventCharacteristics,
     taskTags: buildTaskTags(tasks),
@@ -1450,6 +1482,16 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
                 ))}
               </ul>
               {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
+              {project.ai.searchAttemptedQueries?.length > 0 && (
+                <details className="attempted-query-list">
+                  <summary>시도한 검색어 {project.ai.searchAttemptedQueries.length}개</summary>
+                  <ol>
+                    {project.ai.searchAttemptedQueries.map((query) => (
+                      <li key={query}>{query}</li>
+                    ))}
+                  </ol>
+                </details>
+              )}
               {project.ai.researchResults?.length > 0 && (
                 <div className="source-list-mini">
                   <strong>참고 출처</strong>
