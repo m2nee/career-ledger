@@ -159,12 +159,12 @@ button {
 }
 
 .insight-grid {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin: 18px 0;
 }
 
 .insight-breakdown {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   margin-bottom: 18px;
 }
 
@@ -783,6 +783,11 @@ dd {
 .source-list-mini a {
   color: #18453b;
   font-weight: 900;
+}
+
+.source-list-mini small {
+  color: #77877f;
+  font-weight: 800;
 }
 
 .source-list-mini p {
