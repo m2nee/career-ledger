@@ -41,6 +41,15 @@ VITE_TAVILY_API_KEY=
 
 모든 검색어를 순차적으로 재시도하며, 상세 화면의 `시도한 검색어` 목록과 브라우저 console에서 확인할 수 있습니다.
 
+검색 디버깅 로그에는 다음 항목이 포함됩니다. API Key 값은 출력하지 않습니다.
+
+- `provider`: `tavily | serper | duckduckgo`
+- `hasTavilyKey`
+- `rawResultCount`
+- `filteredResultCount`
+- `rejected.exclusionReasons`: `scoreTooLow`, `titleMismatch`, `snippetMismatch`, `snippetTooShort`
+- `failureReason`: `allResultsFilteredOut`, `apiError`, `noRawResults`
+
 검색 결과가 행사명과 충분히 일치하고 3건 이상 수집될 때만 `[검색 기반 생성]`으로 표시합니다.
 
 검색 결과가 1~2건이면 `[검색 결과 부족]`으로 표시하고 개요 초안을 확정 생성하지 않습니다.
@@ -52,6 +61,8 @@ VITE_TAVILY_API_KEY=
 ```js
 researchStatus: "verified | insufficient | not_found",
 searchAttemptedQueries: ["행사명 발주처 2026", "행사명 보도자료"],
+searchProvider: "tavily | serper | duckduckgo",
+searchFailureReason: "allResultsFilteredOut | apiError | noRawResults",
 researchResults: [
   {
     title: "검색 결과 제목",

@@ -398,6 +398,9 @@ function normalizeProject(project) {
     researchStatus: project.researchStatus || ai.researchStatus || (overviewSource === 'search' ? 'verified' : overviewSource),
     researchResults: project.researchResults || ai.researchResults || [],
     searchAttemptedQueries: project.searchAttemptedQueries || ai.searchAttemptedQueries || [],
+    searchProvider: project.searchProvider || ai.searchProvider || '',
+    searchFailureReason: project.searchFailureReason || ai.searchFailureReason || '',
+    searchAttemptDiagnostics: project.searchAttemptDiagnostics || ai.searchAttemptDiagnostics || [],
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || project.createdAt || new Date().toISOString(),
     source,
@@ -426,6 +429,9 @@ function buildProjectRecord({ id, ownerId, source, ai, createdAt }) {
     researchStatus: ai.researchStatus,
     researchResults: ai.researchResults || [],
     searchAttemptedQueries: ai.searchAttemptedQueries || [],
+    searchProvider: ai.searchProvider || '',
+    searchFailureReason: ai.searchFailureReason || '',
+    searchAttemptDiagnostics: ai.searchAttemptDiagnostics || [],
     createdAt,
     updatedAt: new Date().toISOString(),
     source,
@@ -677,19 +683,32 @@ const searchConfig = {
 
 function scoreSearchCandidate(candidate, source) {
   const text = `${candidate.title || ''} ${candidate.text || ''}`;
+  const title = candidate.title || '';
+  const snippet = candidate.text || '';
   const compactText = text.replace(/\s/g, '');
+  const compactTitle = title.replace(/\s/g, '');
+  const compactSnippet = snippet.replace(/\s/g, '');
   const compactName = source.eventName.replace(/\s/g, '');
   const compactClient = source.client.replace(/\s/g, '');
   const compactVenue = source.venue.replace(/\s/g, '');
   const year = getSourceYear(source);
   const infoKeywords = ['목적', '개최', '주최', '주관', '프로그램', '아젠다', '정책', '축제', '대회', '토론', '포럼', '행사', '참석', '참여', '지원', '문화', '교류', '발표', '장소'];
   let score = 0;
-  const nameMatched = compactName.length >= 2 && compactText.includes(compactName);
+  const nameTokens = compactName
+    .split(/제?\d+회|202\d|20\d{2}|[·ㆍ\-_]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2);
+  const titleMatched = compactName.length >= 2 && compactTitle.includes(compactName);
+  const snippetMatched = compactName.length >= 2 && compactSnippet.includes(compactName);
+  const tokenMatched = nameTokens.some((token) => compactText.includes(token));
+  const nameMatched = titleMatched || snippetMatched || tokenMatched;
   const clientMatched = compactClient.length >= 2 && compactText.includes(compactClient);
   const venueMatched = compactVenue.length >= 2 && compactText.includes(compactVenue);
   const yearMatched = Boolean(year && compactText.includes(year));
 
-  if (nameMatched) score += 6;
+  if (titleMatched) score += 6;
+  if (snippetMatched) score += 5;
+  if (!titleMatched && !snippetMatched && tokenMatched) score += 3;
   if (clientMatched) score += 3;
   if (venueMatched) score += 2;
   if (yearMatched) score += 2;
@@ -698,42 +717,62 @@ function scoreSearchCandidate(candidate, source) {
   });
   if (text.length > 80) score += 1;
 
+  const hasSnippet = normalizeSearchText(snippet).length >= 24;
+  const isReliable = nameMatched && hasSnippet && score >= 5;
+  const exclusionReasons = [];
+  if (!nameMatched) exclusionReasons.push('titleMismatch');
+  if (!snippetMatched && !tokenMatched) exclusionReasons.push('snippetMismatch');
+  if (!hasSnippet) exclusionReasons.push('snippetTooShort');
+  if (score < 5) exclusionReasons.push('scoreTooLow');
+
   return {
     score,
     nameMatched,
+    titleMatched,
+    snippetMatched,
+    tokenMatched,
     clientMatched,
     venueMatched,
     yearMatched,
-    isReliable: nameMatched && score >= 8,
+    isReliable,
+    exclusionReasons,
   };
 }
 
 async function fetchSearchCandidates(query, source) {
   const endpoint = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1&skip_disambig=1`;
   const response = await fetch(endpoint, { signal: AbortSignal.timeout(4500) });
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error(`DuckDuckGo request failed: ${response.status}`);
   const data = await response.json();
   const candidates = [
     { text: data.AbstractText, url: data.AbstractURL || '', title: data.Heading || source.eventName },
     ...flattenRelatedTopics(data.RelatedTopics),
   ].filter((candidate) => candidate.text && normalizeSearchText(candidate.text).length > 40);
 
-  return candidates
-    .map((candidate) => ({
+  const scored = candidates.map((candidate) => ({
       ...candidate,
       query,
       snippet: normalizeSearchText(candidate.text),
       url: candidate.url || '',
       text: normalizeSearchText(candidate.text),
       title: candidate.title || source.eventName,
+      provider: 'duckduckgo',
       ...scoreSearchCandidate(candidate, source),
-    }))
-    .filter((candidate) => candidate.isReliable)
-    .sort((a, b) => b.score - a.score);
+    }));
+  const filtered = scored.filter((candidate) => candidate.isReliable).sort((a, b) => b.score - a.score);
+  return {
+    provider: 'duckduckgo',
+    rawResultCount: candidates.length,
+    filteredResultCount: filtered.length,
+    candidates: filtered,
+    rejected: scored.filter((candidate) => !candidate.isReliable).slice(0, 5),
+  };
 }
 
 async function fetchSerperCandidates(query, source) {
-  if (!searchConfig.serperApiKey) return [];
+  if (!searchConfig.serperApiKey) {
+    return { provider: 'serper', rawResultCount: 0, filteredResultCount: 0, candidates: [], rejected: [], skipped: 'missingApiKey' };
+  }
   const response = await fetch('https://google.serper.dev/search', {
     method: 'POST',
     headers: {
@@ -748,10 +787,10 @@ async function fetchSerperCandidates(query, source) {
     }),
     signal: AbortSignal.timeout(5500),
   });
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error(`Serper request failed: ${response.status}`);
   const data = await response.json();
-  return (data.organic || [])
-    .map((item) => ({
+  const raw = data.organic || [];
+  const scored = raw.map((item) => ({
       title: item.title || source.eventName,
       text: normalizeSearchText(item.snippet || ''),
       snippet: normalizeSearchText(item.snippet || ''),
@@ -759,13 +798,21 @@ async function fetchSerperCandidates(query, source) {
       query,
       provider: 'serper',
       ...scoreSearchCandidate({ title: item.title, text: item.snippet }, source),
-    }))
-    .filter((candidate) => candidate.text && candidate.isReliable)
-    .sort((a, b) => b.score - a.score);
+    }));
+  const filtered = scored.filter((candidate) => candidate.text && candidate.isReliable).sort((a, b) => b.score - a.score);
+  return {
+    provider: 'serper',
+    rawResultCount: raw.length,
+    filteredResultCount: filtered.length,
+    candidates: filtered,
+    rejected: scored.filter((candidate) => !candidate.isReliable).slice(0, 5),
+  };
 }
 
 async function fetchTavilyCandidates(query, source) {
-  if (!searchConfig.tavilyApiKey) return [];
+  if (!searchConfig.tavilyApiKey) {
+    return { provider: 'tavily', rawResultCount: 0, filteredResultCount: 0, candidates: [], rejected: [], skipped: 'missingApiKey' };
+  }
   const response = await fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: {
@@ -780,10 +827,10 @@ async function fetchTavilyCandidates(query, source) {
     }),
     signal: AbortSignal.timeout(5500),
   });
-  if (!response.ok) return [];
+  if (!response.ok) throw new Error(`Tavily request failed: ${response.status}`);
   const data = await response.json();
-  return (data.results || [])
-    .map((item) => ({
+  const raw = data.results || [];
+  const scored = raw.map((item) => ({
       title: item.title || source.eventName,
       text: normalizeSearchText(item.content || ''),
       snippet: normalizeSearchText(item.content || ''),
@@ -791,15 +838,27 @@ async function fetchTavilyCandidates(query, source) {
       query,
       provider: 'tavily',
       ...scoreSearchCandidate({ title: item.title, text: item.content }, source),
-    }))
-    .filter((candidate) => candidate.text && candidate.isReliable)
-    .sort((a, b) => b.score - a.score);
+    }));
+  const filtered = scored.filter((candidate) => candidate.text && candidate.isReliable).sort((a, b) => b.score - a.score);
+  return {
+    provider: 'tavily',
+    rawResultCount: raw.length,
+    filteredResultCount: filtered.length,
+    candidates: filtered,
+    rejected: scored.filter((candidate) => !candidate.isReliable).slice(0, 5),
+  };
 }
 
 async function fetchSearchCandidatesByProvider(query, source) {
   if (searchConfig.serperApiKey) return fetchSerperCandidates(query, source);
   if (searchConfig.tavilyApiKey) return fetchTavilyCandidates(query, source);
   return fetchSearchCandidates(query, source);
+}
+
+function getActiveSearchProvider() {
+  if (searchConfig.serperApiKey) return 'serper';
+  if (searchConfig.tavilyApiKey) return 'tavily';
+  return 'duckduckgo';
 }
 
 async function searchEventInfo(source) {
@@ -815,13 +874,41 @@ async function searchEventInfo(source) {
 
   const collected = [];
   const seen = new Set();
+  const provider = getActiveSearchProvider();
+  const attemptDiagnostics = [];
+
+  console.info('[Career Ledger] search config', {
+    provider,
+    hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
+    hasSerperKey: Boolean(searchConfig.serperApiKey),
+  });
 
   for (const query of attemptedQueries) {
     try {
-      const candidates = await fetchSearchCandidatesByProvider(query, source);
-      console.info('[Career Ledger] search attempt', {
+      const attempt = await fetchSearchCandidatesByProvider(query, source);
+      const candidates = attempt.candidates || [];
+      const rejected = (attempt.rejected || []).map((candidate) => ({
+        title: candidate.title,
+        score: candidate.score,
+        exclusionReasons: candidate.exclusionReasons,
+        titleMatched: candidate.titleMatched,
+        snippetMatched: candidate.snippetMatched,
+        tokenMatched: candidate.tokenMatched,
+      }));
+      attemptDiagnostics.push({
         query,
-        resultCount: candidates.length,
+        provider: attempt.provider || provider,
+        rawResultCount: attempt.rawResultCount || 0,
+        filteredResultCount: attempt.filteredResultCount || 0,
+        rejected,
+      });
+      console.info('[Career Ledger] search attempt', {
+        provider: attempt.provider || provider,
+        query,
+        hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
+        rawResultCount: attempt.rawResultCount || 0,
+        filteredResultCount: attempt.filteredResultCount || 0,
+        rejected,
       });
       candidates.forEach((candidate) => {
         const key = candidate.url || `${candidate.title}-${candidate.text}`;
@@ -839,8 +926,17 @@ async function searchEventInfo(source) {
       });
       if (collected.length >= 5) break;
     } catch (error) {
-      console.info('[Career Ledger] search attempt failed', {
+      attemptDiagnostics.push({
         query,
+        provider,
+        rawResultCount: 0,
+        filteredResultCount: 0,
+        error: error?.message || 'unknown error',
+      });
+      console.info('[Career Ledger] search attempt failed', {
+        provider,
+        query,
+        hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
         message: error?.message || 'unknown error',
       });
       // Continue to the next query when browser/network restrictions block a request.
@@ -848,9 +944,21 @@ async function searchEventInfo(source) {
   }
 
   const results = collected.sort((a, b) => b.score - a.score).slice(0, 5);
+  const failureReason =
+    results.length > 0
+      ? ''
+      : attemptDiagnostics.some((attempt) => attempt.rawResultCount > 0)
+        ? 'allResultsFilteredOut'
+        : attemptDiagnostics.some((attempt) => attempt.error)
+          ? 'apiError'
+          : 'noRawResults';
   console.info('[Career Ledger] search summary', {
+    provider,
+    hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
     attemptedQueries,
+    attempts: attemptDiagnostics,
     collected: results.length,
+    failureReason,
   });
 
   return {
@@ -858,6 +966,9 @@ async function searchEventInfo(source) {
     query: results[0]?.query || attemptedQueries[0] || '',
     results,
     attemptedQueries,
+    provider,
+    attemptDiagnostics,
+    failureReason,
   };
 }
 
@@ -1019,6 +1130,9 @@ async function generateAi(source) {
     researchResults: research.results,
     researchPrompt: hasVerifiedResearch ? buildResearchPrompt(source, research) : '',
     searchAttemptedQueries: research.attemptedQueries || [],
+    searchProvider: research.provider || '',
+    searchFailureReason: research.failureReason || '',
+    searchAttemptDiagnostics: research.attemptDiagnostics || [],
     eventType,
     eventCharacteristics,
     taskTags: buildTaskTags(tasks),
@@ -1652,6 +1766,8 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
                 ))}
               </ul>
               {project.ai.searchQuery && <p className="search-query">검색어: {project.ai.searchQuery}</p>}
+              {project.ai.searchProvider && <p className="search-query">검색 provider: {project.ai.searchProvider}</p>}
+              {project.ai.searchFailureReason && <p className="search-query">검색 실패 이유: {project.ai.searchFailureReason}</p>}
               {project.ai.searchAttemptedQueries?.length > 0 && (
                 <details className="attempted-query-list">
                   <summary>시도한 검색어 {project.ai.searchAttemptedQueries.length}개</summary>
