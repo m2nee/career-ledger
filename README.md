@@ -52,7 +52,7 @@ VITE_TAVILY_API_KEY=
 
 검색 결과가 행사명과 충분히 일치하고 3건 이상 수집될 때만 `[검색 기반 생성]`으로 표시합니다.
 
-검색 결과가 1~2건이면 `[검색 결과 부족]`으로 표시하고 개요 초안을 확정 생성하지 않습니다.
+검색 결과가 1~2건이면 `[검색 결과 부족]`으로 표시하고, 사용자 입력과 행사 성격을 기준으로 일반 초안을 생성합니다.
 
 검색 결과가 없으면 `[공식 자료 없음]`으로 표시하고 가짜 개요를 생성하지 않습니다.
 
@@ -154,13 +154,13 @@ KPI에서 제외:
     eventName: "행사명",
     client: "발주처",
     venue: "행사 장소",
-    category: "정책포럼/컨퍼런스",
+    category: "심사평가회",
     dateStart: "2026-06-11",
     dateEnd: "",
     isMultiDay: false,
     participationLevel: "메인 PM",
     tasks: ["pre_registration", "participant", "protocol"],
-    specialTasks: "RFID 카드 사전 분류\n해군기지 출입정보 취합",
+    specialTasks: "해외연사 대응\n통역 운영",
     participantScale: 300
   },
   title: "행사명",
@@ -173,13 +173,23 @@ KPI에서 제외:
     isMultiDay: false,
     label: "2026.06.11"
   },
-  category: "정책포럼/컨퍼런스",
+  category: "심사평가회",
   tasks: ["pre_registration", "participant", "protocol"],
-  specialTasks: "RFID 카드 사전 분류\n해군기지 출입정보 취합",
+  specialTasks: "해외연사 대응\n통역 운영",
   overview: [
-    "해양안보 및 국방 현안 논의를 위한 정책 토론 행사",
-    "군·산·학·연 관계자 참여",
-    "전문가 발표, 패널토론, 관계기관 네트워킹 진행"
+    "우수 대상 발굴과 평가 절차 운영을 위한 심사평가회",
+    "참가기업·심사위원·운영기관 참여",
+    "평가자료 검토, 현장 심사 및 선정 절차 운영"
+  ],
+  eventFeatures: [
+    "심사 기준에 따른 평가 절차 운영",
+    "참가기업·심사위원·운영기관 참여",
+    "선정·인증·평가 결과 도출 중심"
+  ],
+  operationPoints: [
+    "심사위원 운영",
+    "참가기업 응대",
+    "평가자료 및 현장 운영 관리"
   ],
   overviewSource: "search | insufficient | not_found | input",
   ai: {
@@ -202,8 +212,10 @@ KPI에서 제외:
       }
     ],
     researchPrompt: "행사명, 발주기관, 개최연도, 검색 결과를 포함한 개요 생성 입력값",
-    eventType: "정책 토론 행사",
+    eventType: "심사평가회",
     eventCharacteristics: ["국방", "해양안보", "함정", "보안 환경", "VIP 참석"],
+    eventFeatures: ["심사 기준에 따른 평가 절차 운영", "참가기업·심사위원·운영기관 참여"],
+    operationPoints: ["심사위원 운영", "참가기업 응대", "평가자료 및 현장 운영 관리"],
     taskTags: ["#사전등록운영", "#참석자관리", "#VIP의전"],
     responsibilities: ["사전등록 운영", "참석자 관리", "VIP 의전"],
     keyRoles: [
@@ -217,6 +229,8 @@ KPI에서 제외:
     ],
     manualEdits: {
       eventOverview: "2026-06-21T00:00:00.000Z",
+      eventFeatures: "2026-06-21T00:00:00.000Z",
+      operationPoints: "2026-06-21T00:00:00.000Z",
       responsibilities: "2026-06-21T00:00:00.000Z",
       keyRoles: "2026-06-21T00:00:00.000Z",
       outcomes: "2026-06-21T00:00:00.000Z"

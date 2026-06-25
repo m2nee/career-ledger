@@ -23,7 +23,30 @@ const OWNER_KEY = 'career-ledger-owner-id';
 
 const participationLevels = ['메인 PM', '서브 PM', '현장 운영 지원'];
 
-const categoryOptions = ['정책포럼/컨퍼런스', '국제교류', '심사/평가', '시상식', '전시/박람회', '교육/연수', '위원회/회의', '기업행사', '야외축제', '기타'];
+const categoryGroups = [
+  { label: '회의/토론형', items: ['컨퍼런스', '포럼', '심포지엄', '세미나', '토론회', '간담회', '워크숍'] },
+  { label: '공식행사형', items: ['기념식', '개회식', '폐회식', '준공식', '선포식', '발대식'] },
+  { label: '시상/평가형', items: ['시상식', '심사평가회', '성과발표회', '공모전'] },
+  { label: '전시/홍보형', items: ['전시회', '박람회', '체험행사'] },
+  { label: '교류형', items: ['상담회', '네트워킹', '국제교류행사'] },
+  { label: '문화형', items: ['축제', '공연', '문화행사'] },
+  { label: '교육형', items: ['교육', '연수', '설명회'] },
+  { label: '기타', items: ['기타'] },
+];
+
+const categoryOptions = categoryGroups.flatMap((group) => group.items);
+
+const legacyCategoryAliases = {
+  '정책포럼/컨퍼런스': '컨퍼런스',
+  국제교류: '국제교류행사',
+  '심사/평가': '심사평가회',
+  시상식: '시상식',
+  '전시/박람회': '전시회',
+  '교육/연수': '교육',
+  '위원회/회의': '간담회',
+  기업행사: '네트워킹',
+  야외축제: '축제',
+};
 
 const taskGroups = [
   {
@@ -323,6 +346,12 @@ function normalizeTaskIds(tasks = []) {
   return [...new Set(tasks.map(normalizeTaskId).filter(Boolean))];
 }
 
+function normalizeCategory(category) {
+  if (!category) return categoryOptions[0];
+  if (categoryOptions.includes(category)) return category;
+  return legacyCategoryAliases[category] || categoryOptions[0];
+}
+
 function getTaskLabel(taskIdOrLabel) {
   return taskById[taskIdOrLabel]?.label || taskIdOrLabel;
 }
@@ -364,7 +393,7 @@ function normalizeSource(source = {}, project = {}) {
     eventName: source.eventName || project.title || '',
     client: source.client || project.client || '',
     venue: source.venue || '',
-    category: source.category || project.category || categoryOptions[0],
+    category: normalizeCategory(source.category || project.category),
     dateStart,
     dateEnd,
     isMultiDay,
@@ -378,6 +407,8 @@ function normalizeProject(project) {
   const source = normalizeSource(project.source, project);
   const ai = project.ai || {};
   const overview = project.overview || ai.eventOverview || [];
+  const eventFeatures = ai.eventFeatures || project.eventFeatures || [];
+  const operationPoints = ai.operationPoints || project.operationPoints || ai.responsibilities || [];
   const overviewSource = project.overviewSource || ai.overviewSource || 'input';
   const year = project.year || getSourceYear(source);
   const roleType = project.roleType || source.participationLevel;
@@ -390,10 +421,12 @@ function normalizeProject(project) {
     year,
     roleType,
     period: project.period || buildPeriod(source),
-    category: project.category || source.category,
+    category: normalizeCategory(project.category || source.category),
     tasks: normalizeTaskIds(project.tasks || source.tasks || []),
     specialTasks: parseSpecialTasks(project.specialTasks || source.specialTasks),
     overview,
+    eventFeatures,
+    operationPoints,
     overviewSource,
     researchStatus: project.researchStatus || ai.researchStatus || (overviewSource === 'search' ? 'verified' : overviewSource),
     researchResults: project.researchResults || ai.researchResults || [],
@@ -407,6 +440,8 @@ function normalizeProject(project) {
     ai: {
       ...ai,
       eventOverview: ai.eventOverview || overview,
+      eventFeatures,
+      operationPoints,
       overviewSource,
     },
   };
@@ -425,6 +460,8 @@ function buildProjectRecord({ id, ownerId, source, ai, createdAt }) {
     tasks: source.tasks,
     specialTasks: source.specialTasks,
     overview: ai.eventOverview,
+    eventFeatures: ai.eventFeatures || [],
+    operationPoints: ai.operationPoints || [],
     overviewSource: ai.overviewSource,
     researchStatus: ai.researchStatus,
     researchResults: ai.researchResults || [],
@@ -681,6 +718,19 @@ const searchConfig = {
   tavilyApiKey: import.meta.env.VITE_TAVILY_API_KEY || '',
 };
 
+function getSearchEnvDiagnostics() {
+  return {
+    mode: import.meta.env.MODE,
+    dev: Boolean(import.meta.env.DEV),
+    prod: Boolean(import.meta.env.PROD),
+    hasTavilyKey: Boolean(import.meta.env.VITE_TAVILY_API_KEY),
+    hasSerperKey: Boolean(import.meta.env.VITE_SERPER_API_KEY),
+    exposedSearchEnvKeys: Object.keys(import.meta.env).filter((key) => key.includes('TAVILY') || key.includes('SERPER')),
+  };
+}
+
+console.info('[Career Ledger] search env diagnostics', getSearchEnvDiagnostics());
+
 function scoreSearchCandidate(candidate, source) {
   const text = `${candidate.title || ''} ${candidate.text || ''}`;
   const title = candidate.title || '';
@@ -861,6 +911,12 @@ function getActiveSearchProvider() {
   return 'duckduckgo';
 }
 
+function getProviderSelectionReason() {
+  if (searchConfig.serperApiKey) return 'serperKeyDetected';
+  if (searchConfig.tavilyApiKey) return 'tavilyKeyDetected';
+  return 'noSearchApiKeyDetected';
+}
+
 async function searchEventInfo(source) {
   const attemptedQueries = buildSearchQueries(source);
   if (!source.eventName || !window.fetch) {
@@ -879,8 +935,8 @@ async function searchEventInfo(source) {
 
   console.info('[Career Ledger] search config', {
     provider,
-    hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
-    hasSerperKey: Boolean(searchConfig.serperApiKey),
+    providerSelectionReason: getProviderSelectionReason(),
+    ...getSearchEnvDiagnostics(),
   });
 
   for (const query of attemptedQueries) {
@@ -905,7 +961,9 @@ async function searchEventInfo(source) {
       console.info('[Career Ledger] search attempt', {
         provider: attempt.provider || provider,
         query,
+        providerSelectionReason: getProviderSelectionReason(),
         hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
+        hasSerperKey: Boolean(searchConfig.serperApiKey),
         rawResultCount: attempt.rawResultCount || 0,
         filteredResultCount: attempt.filteredResultCount || 0,
         rejected,
@@ -936,7 +994,9 @@ async function searchEventInfo(source) {
       console.info('[Career Ledger] search attempt failed', {
         provider,
         query,
+        providerSelectionReason: getProviderSelectionReason(),
         hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
+        hasSerperKey: Boolean(searchConfig.serperApiKey),
         message: error?.message || 'unknown error',
       });
       // Continue to the next query when browser/network restrictions block a request.
@@ -954,7 +1014,8 @@ async function searchEventInfo(source) {
           : 'noRawResults';
   console.info('[Career Ledger] search summary', {
     provider,
-    hasTavilyKey: Boolean(searchConfig.tavilyApiKey),
+    providerSelectionReason: getProviderSelectionReason(),
+    ...getSearchEnvDiagnostics(),
     attemptedQueries,
     attempts: attemptDiagnostics,
     collected: results.length,
@@ -1047,12 +1108,166 @@ function buildSearchSignals(text) {
   return getUniqueLimited(signals, 4);
 }
 
+const categoryDraftGuides = {
+  컨퍼런스: {
+    purpose: '주요 의제 공유와 산업·정책 논의를 위한 컨퍼런스',
+    features: ['기조강연 및 세션 중심 구성', '전문가·관계기관 참여', '발표 및 네트워킹 프로그램 운영'],
+    operation: ['세션 운영 관리', '연사 및 발표자료 관리', '참가자 등록 체계 운영'],
+  },
+  포럼: {
+    purpose: '주요 현안과 발전 방향을 논의하는 포럼',
+    features: ['의제 중심 발표 및 토론 구성', '전문가·기관 관계자 참여', '정책·사업 방향 공유'],
+    operation: ['발표 및 토론 진행 관리', '연사·패널 운영', '참가자 및 관계기관 응대'],
+  },
+  심포지엄: {
+    purpose: '전문 분야 지식과 성과를 공유하는 심포지엄',
+    features: ['학술·전문 주제 중심 세션', '연구성과 및 사례 발표', '전문가 교류 프로그램 운영'],
+    operation: ['세션별 진행 관리', '연사 및 발표자료 관리', '등록·안내 운영'],
+  },
+  세미나: {
+    purpose: '전문 지식 전달과 실무 정보 공유를 위한 세미나',
+    features: ['강연 및 질의응답 중심 구성', '참가자 대상 정보 제공', '소규모 집중형 프로그램 운영'],
+    operation: ['강연 진행 관리', '참가자 안내 및 등록 운영', '자료 배포 및 현장 응대'],
+  },
+  토론회: {
+    purpose: '주요 현안에 대한 의견 수렴과 논의를 위한 토론회',
+    features: ['발제 및 토론 중심 구성', '전문가·이해관계자 참여', '의제별 의견 공유'],
+    operation: ['발제자·토론자 운영', '토론 진행 흐름 관리', '참가자 안내 및 현장 운영'],
+  },
+  간담회: {
+    purpose: '관계자 의견 공유와 협의를 위한 간담회',
+    features: ['소규모 관계자 중심 운영', '현안 공유 및 의견 수렴', '기관·참석자 간 교류'],
+    operation: ['참석자 의전 및 응대', '회의 진행 지원', '자료 및 좌석 운영'],
+  },
+  워크숍: {
+    purpose: '실무 역량 강화와 과제 논의를 위한 워크숍',
+    features: ['교육·토의·실습형 프로그램 구성', '참가자 참여 중심 운영', '결과 공유 및 피드백 진행'],
+    operation: ['분임토의 및 실습 운영', '참가자 관리', '결과자료 취합'],
+  },
+  기념식: {
+    purpose: '기관·사업의 의미와 성과를 공식적으로 기념하는 행사',
+    features: ['공식 의전과 기념 프로그램 중심 구성', '주요 내빈 및 관계자 참석', '기념사·축사·세리머니 운영'],
+    operation: ['VIP 의전', '무대 및 큐시트 운영', '참석자 동선 관리'],
+  },
+  개회식: {
+    purpose: '행사 또는 사업의 시작을 공식적으로 알리는 개회 행사',
+    features: ['개회사·축사 등 공식 순서 운영', '주요 내빈 및 참가자 참석', '본 행사 시작 전 의전 중심 구성'],
+    operation: ['공식 순서 진행 관리', 'VIP 의전', '무대 및 현장 운영'],
+  },
+  폐회식: {
+    purpose: '행사 종료와 주요 성과를 정리하는 폐회 행사',
+    features: ['성과 공유 및 마무리 세리머니 구성', '참가자·관계자 참석', '시상 또는 결과 발표 연계 가능'],
+    operation: ['폐회 순서 진행 관리', '참석자 안내', '결과자료 및 현장 정리'],
+  },
+  준공식: {
+    purpose: '시설·공간의 완공을 공식적으로 알리는 준공 행사',
+    features: ['준공 경과 공유 및 기념 세리머니', '기관·지역 관계자 참석', '현장 투어 또는 기념 프로그램 운영'],
+    operation: ['세리머니 진행 관리', 'VIP 의전 및 동선 관리', '현장 안전 및 공간 운영'],
+  },
+  선포식: {
+    purpose: '정책·비전·사업 방향을 공식적으로 발표하는 선포 행사',
+    features: ['비전 발표 및 선언 프로그램 구성', '기관·관계자 참여', '공식 메시지 전달 중심 운영'],
+    operation: ['선포 세리머니 운영', '무대 및 발표 진행 관리', '참석자·언론 응대'],
+  },
+  발대식: {
+    purpose: '조직·사업·프로그램의 출범을 알리는 발대 행사',
+    features: ['출범 선언 및 위촉·다짐 프로그램 구성', '참여자 결속과 역할 공유', '공식 의전 중심 운영'],
+    operation: ['위촉 및 선언 순서 운영', '참석자 관리', '무대 및 현장 진행 관리'],
+  },
+  시상식: {
+    purpose: '우수 성과를 선정·포상하고 사례를 공유하는 시상 행사',
+    features: ['수상자 발표 및 포상 프로그램 구성', '기관·기업·관계자 참석', '성과 공유와 교류 중심 운영'],
+    operation: ['수상자 동선 및 시상 순서 관리', 'VIP 의전', '무대 및 큐시트 운영'],
+  },
+  심사평가회: {
+    purpose: '사업·기업·과제의 우수성과 적합성을 심사·평가하는 행사',
+    features: ['심사 기준에 따른 평가 절차 운영', '참가기업·심사위원·운영기관 참여', '선정·인증·평가 결과 도출 중심'],
+    operation: ['심사위원 운영', '참가기업 응대', '평가자료 및 현장 운영 관리'],
+  },
+  성과발표회: {
+    purpose: '사업 추진 결과와 우수 사례를 공유하는 성과 발표 행사',
+    features: ['성과 발표 및 사례 공유 중심 구성', '사업 참여자·기관 관계자 참석', '향후 확산 방향 논의 가능'],
+    operation: ['발표자 및 자료 관리', '세션 진행 운영', '참가자 안내 및 현장 관리'],
+  },
+  공모전: {
+    purpose: '우수 아이디어·작품·사업 모델을 발굴하고 평가하는 공모 행사',
+    features: ['접수·심사·선정 절차 기반 운영', '참가자 및 심사위원 참여', '수상작 발표 또는 전시 연계 가능'],
+    operation: ['접수 및 심사 운영', '참가자 응대', '결과 발표 및 시상 운영'],
+  },
+  전시회: {
+    purpose: '제품·사업·콘텐츠를 전시하고 관람객에게 홍보하는 행사',
+    features: ['전시 부스 및 관람 동선 구성', '참가기업·기관 홍보 운영', '현장 상담 또는 체험 프로그램 연계'],
+    operation: ['전시 부스 운영 관리', '공간 조성 및 동선 관리', '참가기업·관람객 응대'],
+  },
+  박람회: {
+    purpose: '산업·정책·서비스 정보를 종합적으로 소개하는 박람회',
+    features: ['다수 부스와 현장 프로그램 구성', '기업·기관·방문객 참여', '홍보·상담·체험 프로그램 운영'],
+    operation: ['부스 및 공간 운영', '참가기업 관리', '관람객 안내 및 현장 대응'],
+  },
+  체험행사: {
+    purpose: '참가자가 직접 경험하고 이해할 수 있도록 구성된 체험형 행사',
+    features: ['참여형 프로그램 중심 운영', '현장 안내와 안전 관리 중요', '콘텐츠 체험 및 피드백 수집 가능'],
+    operation: ['체험 프로그램 운영', '참가자 안내 및 안전 관리', '현장 동선 관리'],
+  },
+  상담회: {
+    purpose: '기업·기관·참가자 간 상담과 매칭을 지원하는 행사',
+    features: ['사전 매칭 또는 현장 상담 중심 구성', '기업·바이어·관계기관 참여', '비즈니스 교류 및 후속 협의 연계'],
+    operation: ['상담 일정 및 매칭 관리', '참가기업 응대', '상담장 운영 및 현장 안내'],
+  },
+  네트워킹: {
+    purpose: '참가자 간 교류와 협업 기회 확대를 위한 네트워킹 행사',
+    features: ['교류 중심 프로그램 구성', '기관·기업·전문가 참여', '관계 형성과 후속 협업 기반 마련'],
+    operation: ['참석자 응대 및 교류 동선 관리', '프로그램 진행 지원', 'VIP 및 주요 관계자 의전'],
+  },
+  국제교류행사: {
+    purpose: '국내외 관계자 간 협력과 교류를 확대하는 국제교류 행사',
+    features: ['해외 참가자 또는 기관 참여', '통역·의전·국제 커뮤니케이션 중요', '교류 프로그램 및 공식 일정 운영'],
+    operation: ['해외 참가자 응대', '통역 및 의전 운영', '국제 일정 및 현장 동선 관리'],
+  },
+  축제: {
+    purpose: '지역·문화 콘텐츠를 시민과 공유하는 참여형 축제',
+    features: ['공연·체험·전시 등 복합 프로그램 구성', '시민·방문객 참여 중심', '현장 안전과 동선 관리 중요'],
+    operation: ['공연 및 체험 프로그램 운영', '방문객 안내 및 안전 관리', '협력업체 및 현장 인력 관리'],
+  },
+  공연: {
+    purpose: '무대 콘텐츠를 관객에게 제공하는 공연 행사',
+    features: ['무대·음향·조명 등 기술 운영 중요', '관객 입장과 좌석 관리 필요', '큐시트 기반 진행'],
+    operation: ['무대 및 큐시트 운영', '관객 안내 및 현장 관리', '시스템/AV 운영 관리'],
+  },
+  문화행사: {
+    purpose: '문화 콘텐츠를 소개하고 참여 경험을 제공하는 행사',
+    features: ['공연·전시·체험 프로그램 연계', '시민·방문객 참여 중심', '콘텐츠별 현장 운영 필요'],
+    operation: ['프로그램별 현장 운영', '참가자 동선 및 안내 관리', '공간 조성 및 제작물 관리'],
+  },
+  교육: {
+    purpose: '참가자 역량 강화와 정보 전달을 위한 교육 행사',
+    features: ['강의·실습·질의응답 중심 구성', '교육 대상자 관리 중요', '자료 배포 및 출결 관리 가능'],
+    operation: ['교육장 운영', '참가자 출결 및 안내 관리', '강사 및 교육자료 관리'],
+  },
+  연수: {
+    purpose: '조직·참가자의 역량 개발과 교류를 위한 연수 행사',
+    features: ['교육·토의·네트워킹 프로그램 연계', '참가자 일정 관리 중요', '숙박·이동 등 부대 운영 가능'],
+    operation: ['연수 일정 운영', '참가자 관리', '강사·장소·이동 동선 관리'],
+  },
+  설명회: {
+    purpose: '사업·정책·서비스 정보를 대상자에게 안내하는 설명회',
+    features: ['정보 전달과 질의응답 중심 구성', '참석 대상자 안내 중요', '자료 배포 및 현장 응대 필요'],
+    operation: ['발표 및 질의응답 운영', '참석자 안내 및 등록 관리', '자료 배포 및 현장 응대'],
+  },
+  기타: {
+    purpose: '사용자 입력 정보를 기반으로 정리한 행사',
+    features: ['행사 성격과 목적은 사용자 확인 필요', '운영 범위와 참석 대상 확인 필요', '포트폴리오용 문구 직접 보완 권장'],
+    operation: ['현장 운영 관리', '참가자 응대', '운영 자료 정리'],
+  },
+};
+
 function buildResearchPrompt(source, research) {
   return [
     `행사명: ${source.eventName}`,
     `발주기관: ${source.client}`,
     `개최연도: ${getSourceYear(source) || '미입력'}`,
-    '규칙: 아래 검색 결과에 포함된 정보만 사용해 포트폴리오용 행사 개요를 작성한다.',
+    `사용자 지정 행사 성격: ${normalizeCategory(source.category)}`,
+    '규칙: 사용자 지정 행사 성격을 최우선으로 사용하고, 검색 결과에 포함된 정보만 참고해 포트폴리오용 초안을 작성한다.',
     ...research.results.map((result, index) => `${index + 1}. ${result.title}\n${result.snippet}\n${result.url}`),
   ].join('\n\n');
 }
@@ -1062,18 +1277,36 @@ function pickSearchFact(text, groups, fallback = '') {
   return found?.value || fallback;
 }
 
-function buildSearchOverviewBullets(source, research, eventType) {
+function getCategoryGuide(eventType) {
+  return categoryDraftGuides[eventType] || categoryDraftGuides.기타;
+}
+
+function buildOperationPoints(source, eventType) {
+  const guide = getCategoryGuide(eventType);
+  const selected = buildPortfolioResponsibilities(getTaskList(source)).slice(0, 5);
+  const special = getSpecialTaskList(source).slice(0, 3);
+  return getUniqueLimited([...guide.operation, ...selected, ...special], 5);
+}
+
+function buildDraftOverview(source, research, eventType) {
   const text = research.results.map((result) => `${result.title} ${result.snippet}`).join(' ');
-  const purpose = pickSearchFact(
+  const guide = getCategoryGuide(eventType);
+  const host = source.client || '발주기관';
+  const venueText = source.venue ? `${source.venue}에서 운영되는 ` : '';
+  const isSearchBased = research.status === 'verified';
+  const evidencePurpose = pickSearchFact(
     text,
     [
-      { keywords: ['정책', '현안', '안보', '국방'], value: '정책 현안 및 주요 의제 논의를 위한 행사' },
-      { keywords: ['성과', '우수사례', '연구'], value: '성과 공유 및 주요 사례 확산을 위한 행사' },
-      { keywords: ['시상', '포상', '유공'], value: '우수 성과 포상 및 교류를 위한 행사' },
-      { keywords: ['축제', '문화', '공연', '체험'], value: '문화 콘텐츠와 참여 프로그램 중심 행사' },
-      { keywords: ['전시', '박람회', '부스'], value: '산업 정보와 주요 콘텐츠를 소개하는 전시 행사' },
+      { keywords: ['심사', '평가', '선정', '인증', '우수기업', '공모'], value: '우수 대상 발굴과 평가 절차 운영' },
+      { keywords: ['시상', '포상', '유공'], value: '우수 성과 선정 및 포상' },
+      { keywords: ['전시', '박람회', '부스'], value: '콘텐츠 전시와 홍보 운영' },
+      { keywords: ['상담', '매칭', '바이어'], value: '참가자·기업 간 상담과 교류 지원' },
+      { keywords: ['교육', '연수', '설명'], value: '대상자 교육과 정보 전달' },
+      { keywords: ['공연', '축제', '문화', '체험'], value: '문화 콘텐츠와 참여 프로그램 운영' },
+      { keywords: ['기념', '선포', '발대', '준공'], value: '공식 메시지 전달과 의전 프로그램 운영' },
+      { keywords: ['정책', '현안', '토론', '포럼', '컨퍼런스'], value: '주요 의제 공유와 관계자 논의' },
     ],
-    `${eventType} 관련 공식 자료 기반 행사`,
+    '',
   );
   const audience = pickSearchFact(
     text,
@@ -1082,39 +1315,60 @@ function buildSearchOverviewBullets(source, research, eventType) {
       { keywords: ['기업', '경제인'], value: '기업 및 산업 관계자 참여' },
       { keywords: ['시민', '주민', '방문객'], value: '시민 및 방문객 참여' },
       { keywords: ['학생', '교원', '교육'], value: '교육 분야 관계자 및 참가자 참여' },
+      { keywords: ['심사위원', '평가위원'], value: '심사위원 및 평가 대상자 참여' },
     ],
-    '참가자 및 관계기관 대상 프로그램 구성',
+    '',
   );
   const program = pickSearchFact(
     text,
     [
-      { keywords: ['발표', '강연', '기조'], value: '기조강연 및 발표 프로그램 운영' },
-      { keywords: ['토론', '패널', '세션'], value: '세션, 패널토론 및 의제 공유 프로그램 운영' },
-      { keywords: ['시상', '포상'], value: '시상, 포상 및 교류 프로그램 운영' },
+      { keywords: ['심사', '평가', '선정', '인증'], value: '심사·평가 및 선정 절차 운영' },
+      { keywords: ['시상', '포상'], value: '시상 및 포상 프로그램 운영' },
+      { keywords: ['상담', '매칭'], value: '상담 매칭 및 교류 프로그램 운영' },
       { keywords: ['전시', '부스'], value: '전시 부스 및 현장 관람 프로그램 운영' },
       { keywords: ['공연', '체험'], value: '공연, 체험 및 부대 프로그램 운영' },
+      { keywords: ['발표', '강연', '기조'], value: '강연 및 발표 프로그램 운영' },
+      { keywords: ['토론', '패널', '세션'], value: '세션 및 의제 공유 프로그램 운영' },
     ],
-    '발표, 토론, 교류 프로그램 운영',
+    '',
   );
 
-  return [
-    purpose,
-    audience,
-    program,
-  ].slice(0, 3);
+  const overview = [
+    `${source.eventName}는 ${host}의 ${evidencePurpose || guide.purpose}입니다.`,
+    `${venueText}${eventType} 성격에 맞춰 ${program || guide.features[0]}을 중심으로 구성됩니다.`,
+    audience ? `${audience}를 고려한 운영 초안입니다.` : '',
+  ].filter(Boolean).slice(0, 3);
+
+  const features = getUniqueLimited(
+    [
+      ...(isSearchBased ? buildSearchSignals(text) : []),
+      ...(program ? [program] : []),
+      ...(audience ? [audience] : []),
+      ...guide.features,
+    ],
+    3,
+  );
+
+  return {
+    eventOverview: overview,
+    eventFeatures: features,
+    operationPoints: buildOperationPoints(source, eventType),
+  };
 }
 
 async function generateAi(source) {
-  const eventType = inferEventType(source);
+  const eventType = normalizeCategory(source.category) || inferEventType(source);
   const tasks = getTaskList(source);
   const research = await searchEventInfo(source);
   const hasVerifiedResearch = research.status === 'verified';
   const overviewSource = hasVerifiedResearch ? 'search' : research.status === 'insufficient' ? 'insufficient' : 'not_found';
-  const eventOverview = hasVerifiedResearch
-    ? buildSearchOverviewBullets(source, research, eventType)
-    : research.status === 'insufficient'
-      ? ['검색 결과 부족: 공식 자료가 충분하지 않아 행사 개요 초안을 생성하지 않았습니다.']
-      : ['공식 자료를 찾지 못했습니다. 행사 개요를 직접 입력해주세요.'];
+  const draft = buildDraftOverview(source, research, eventType);
+  const eventOverview =
+    research.status === 'insufficient'
+      ? ['검색 결과가 부족하여 사용자 입력과 행사 성격을 기준으로 일반 초안을 생성했습니다.', ...draft.eventOverview].slice(0, 3)
+      : research.status === 'not_found'
+        ? ['공식 자료를 찾지 못해 사용자 입력과 행사 성격을 기준으로 임시 초안을 생성했습니다.', ...draft.eventOverview].slice(0, 3)
+        : draft.eventOverview;
   const eventCharacteristics = analyzeEventCharacteristics(source, eventType, { text: research.results.map((result) => result.snippet).join(' ') });
   const responsibilities = buildPortfolioResponsibilities(tasks);
   const keyRoles = buildKeyRoles(source, eventType, eventCharacteristics);
@@ -1135,11 +1389,13 @@ async function generateAi(source) {
     searchAttemptDiagnostics: research.attemptDiagnostics || [],
     eventType,
     eventCharacteristics,
+    eventFeatures: draft.eventFeatures,
+    operationPoints: draft.operationPoints,
     taskTags: buildTaskTags(tasks),
     responsibilities,
     keyRoles,
     outcomes,
-    portfolioText: [...responsibilities, ...keyRoles, ...outcomes].map((item) => `- ${item}`).join('\n'),
+    portfolioText: [...eventOverview, ...draft.eventFeatures, ...draft.operationPoints, ...responsibilities, ...keyRoles, ...outcomes].map((item) => `- ${item}`).join('\n'),
   };
 }
 
@@ -1183,7 +1439,16 @@ function stringifyEditableValue(value) {
 }
 
 function buildPortfolioTextFromAi(ai) {
-  return [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].map((item) => `- ${item}`).join('\n');
+  return [
+    ...(ai.eventOverview || []),
+    ...(ai.eventFeatures || []),
+    ...(ai.operationPoints || []),
+    ...(ai.responsibilities || []),
+    ...(ai.keyRoles || ai.careerSummary || []),
+    ...(ai.outcomes || []),
+  ]
+    .map((item) => `- ${item}`)
+    .join('\n');
 }
 
 function App() {
@@ -1236,7 +1501,7 @@ function App() {
       eventName: form.eventName.trim(),
       client: form.client.trim(),
       venue: form.venue.trim(),
-      category: form.category || categoryOptions[0],
+      category: normalizeCategory(form.category),
       dateEnd: form.isMultiDay ? form.dateEnd : '',
       tasks: normalizeTaskIds(form.tasks),
       specialTasks: parseSpecialTasks(form.specialTasks),
@@ -1312,6 +1577,8 @@ function App() {
         return {
           ...project,
           overview: ai.eventOverview || project.overview,
+          eventFeatures: ai.eventFeatures || project.eventFeatures || [],
+          operationPoints: ai.operationPoints || project.operationPoints || [],
           overviewSource: ai.overviewSource || project.overviewSource,
           ai: {
             ...ai,
@@ -1342,7 +1609,7 @@ function App() {
   function copyPortfolioText() {
     if (!selectedProject) return;
     const ai = selectedProject.ai;
-    const fallbackText = [...(ai.responsibilities || []), ...(ai.keyRoles || ai.careerSummary || []), ...(ai.outcomes || [])].join('\n');
+    const fallbackText = buildPortfolioTextFromAi(ai);
     navigator.clipboard?.writeText(ai.portfolioText || fallbackText || '');
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
@@ -1488,10 +1755,14 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
         <label>
           행사 성격
           <select value={form.category} onChange={(event) => onChange('category', event.target.value)} required>
-            {categoryOptions.map((category) => (
-              <option value={category} key={category}>
-                {category}
-              </option>
+            {categoryGroups.map((group) => (
+              <optgroup label={group.label} key={group.label}>
+                {group.items.map((category) => (
+                  <option value={category} key={category}>
+                    {category}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -1548,7 +1819,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
           <textarea
             value={form.specialTasks}
             onChange={(event) => onChange('specialTasks', event.target.value)}
-            placeholder="예: RFID 카드 사전 분류, 해군기지 출입정보 취합, 서울투어 프로그램 기획"
+            placeholder="예: 해외연사 대응, 통역 운영, VIP 의전, 보안 출입 통제, 국제행사 운영, 전시 운영, 온라인 생중계"
           />
           <span className="field-help">체크박스로 표현하기 어려운 세부 업무를 줄바꿈으로 입력해주세요.</span>
         </label>
@@ -1561,7 +1832,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
 
         <p className="generation-note">
           <Search size={16} />
-          행사명+발주처+개최연도 기준으로 검색하고, 공식 자료가 부족하면 개요를 확정 생성하지 않습니다.
+          행사 성격을 기준으로 검색 결과와 입력 정보를 조합해 수정 가능한 포트폴리오 초안을 생성합니다.
         </p>
 
         <div className="form-actions">
@@ -1572,7 +1843,7 @@ function ProjectForm({ form, editingId, isGenerating, onChange, onToggleTask, on
           )}
           <button className="primary-button" type="submit" disabled={isGenerating}>
             <Plus size={18} />
-            {isGenerating ? 'AI 검색 및 생성 중' : editingId ? '수정 저장' : '저장하고 AI 결과 보기'}
+            {isGenerating ? '포트폴리오 초안 생성 중' : editingId ? '수정 저장' : '포트폴리오 초안 생성'}
           </button>
         </div>
       </form>
@@ -1641,9 +1912,9 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
     project.ai.overviewSource === 'search'
       ? '검색 기반 생성'
       : project.ai.overviewSource === 'insufficient'
-        ? '검색 결과 부족'
+        ? '검색 결과 부족 · 일반 초안'
         : project.ai.overviewSource === 'not_found'
-          ? '공식 자료 없음'
+          ? '공식 자료 없음 · 입력 기반 임시 초안'
           : '입력 기반 임시 개요';
   const sourceClass = project.ai.overviewSource === 'search' ? 'source-search' : project.ai.overviewSource === 'insufficient' ? 'source-warning' : 'source-input';
   const keyRoles = project.ai.keyRoles || project.ai.careerSummary || [];
@@ -1799,6 +2070,28 @@ function ProjectDetail({ project, copied, onCopy, onDelete, onEdit, onUpdateAi }
                 </div>
               )}
             </>
+          )}
+        </ResultBlock>
+        <ResultBlock title="행사 특징" manuallyEdited={project.ai.manualEdits?.eventFeatures} onEdit={() => startAiEdit('eventFeatures', project.ai.eventFeatures || [])}>
+          {editingField === 'eventFeatures' ? (
+            renderTextEditor('eventFeatures')
+          ) : (
+            <ul className="portfolio-list">
+              {(project.ai.eventFeatures || []).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </ResultBlock>
+        <ResultBlock title="운영 포인트" manuallyEdited={project.ai.manualEdits?.operationPoints} onEdit={() => startAiEdit('operationPoints', project.ai.operationPoints || [])}>
+          {editingField === 'operationPoints' ? (
+            renderTextEditor('operationPoints')
+          ) : (
+            <ul className="portfolio-list">
+              {(project.ai.operationPoints || []).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           )}
         </ResultBlock>
         <ResultBlock title="행사유형" manuallyEdited={project.ai.manualEdits?.eventType} onEdit={() => startAiEdit('eventType', project.ai.eventType)}>
